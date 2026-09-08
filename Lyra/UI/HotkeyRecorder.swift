@@ -2,10 +2,20 @@ import SwiftUI
 import Carbon.HIToolbox
 
 struct HotkeyRecorder: View {
-    @Binding var keyCode: Int
+    @Binding var binding: HotkeyBinding
     let colorScheme: ColorScheme
+    /// Shows a clear button and accepts "no shortcut" — used by the optional
+    /// hands-free key, which may legitimately be unassigned.
+    var allowsUnassigned: Bool = false
+
     @State private var isRecording = false
     @State private var eventMonitors: [Any] = []
+    /// Modifiers currently held during capture. A chord is committed when a
+    /// normal key arrives; a lone modifier is committed when everything is
+    /// released without one, so holding ⌥ on the way to ⌥K is not mistaken for
+    /// a bare-⌥ binding.
+    @State private var pendingFlags: UInt64 = 0
+    @State private var pendingModifierKeyCode: Int = -1
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -45,9 +55,9 @@ struct HotkeyRecorder: View {
                                     .foregroundStyle(.white)
                             }
                         } else {
-                            Text(keyName(for: keyCode))
+                            Text(binding.label(keyNameFallback: KeyCodeNames.layoutLabel))
                                 .font(.system(size: 13, weight: .medium, design: .rounded))
-                                .foregroundStyle(.primary)
+                                .foregroundStyle(binding.isAssigned ? .primary : .secondary)
                         }
                     }
 
@@ -55,6 +65,11 @@ struct HotkeyRecorder: View {
                         Text(L10n.tr("Click to change"))
                             .font(.system(size: 11))
                             .foregroundStyle(.tertiary)
+                    }
+                    if allowsUnassigned && binding.isAssigned && !isRecording {
+                        Button(L10n.tr("Clear")) { binding = .unassigned }
+                            .buttonStyle(.borderless)
+                            .font(.system(size: 11))
                     }
                 }
             }
@@ -64,7 +79,7 @@ struct HotkeyRecorder: View {
             HStack(spacing: 6) {
                 ForEach(KeyCodeNames.presets, id: \.code) { preset in
                     Button {
-                        keyCode = preset.code
+                        binding = HotkeyBinding(keyCode: preset.code, modifierFlags: 0)
                         stopRecording()
                     } label: {
                         Text(preset.pill)
@@ -73,15 +88,15 @@ struct HotkeyRecorder: View {
                             .padding(.vertical, 4)
                             .background(
                                 Capsule()
-                                    .fill(keyCode == preset.code
+                                    .fill(binding.keyCode == preset.code && binding.modifierFlags == 0
                                         ? Color.blue.opacity(0.15)
                                         : (colorScheme == .dark ? Color.white.opacity(0.06) : Color.black.opacity(0.04)))
                             )
                             .overlay(
                                 Capsule()
-                                    .stroke(keyCode == preset.code ? Color.blue.opacity(0.4) : Color.clear, lineWidth: 1)
+                                    .stroke(binding.keyCode == preset.code && binding.modifierFlags == 0 ? Color.blue.opacity(0.4) : Color.clear, lineWidth: 1)
                             )
-                            .foregroundStyle(keyCode == preset.code ? .blue : .secondary)
+                            .foregroundStyle(binding.keyCode == preset.code && binding.modifierFlags == 0 ? .blue : .secondary)
                     }
                     .buttonStyle(.plain)
                 }
@@ -96,45 +111,50 @@ struct HotkeyRecorder: View {
 
     private func startRecording() {
         isRecording = true
+        pendingFlags = 0
+        pendingModifierKeyCode = -1
+
+        // A normal key ends capture immediately, carrying whatever modifiers are
+        // held with it — this is what makes `fn + \`` recordable.
         let keyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { event in
-            keyCode = Int(event.keyCode)
+            let flags = UInt64(event.modifierFlags.rawValue) & HotkeyBinding.relevantMask
+            binding = HotkeyBinding(keyCode: Int(event.keyCode), modifierFlags: flags)
             stopRecording()
             return nil
         }
+
         let flagsMonitor = NSEvent.addLocalMonitorForEvents(matching: [.flagsChanged]) { event in
             let code = Int(event.keyCode)
-            if KeyCodeNames.isModifier(code) {
-                keyCode = code
+            let flags = UInt64(event.modifierFlags.rawValue) & HotkeyBinding.relevantMask
+
+            if flags != 0 {
+                // Modifiers going down: remember them, but wait. Committing here
+                // would capture ⌥ the instant it is pressed and make a chord
+                // impossible to type.
+                pendingFlags = flags
+                if KeyCodeNames.isModifier(code) { pendingModifierKeyCode = code }
+                return nil
+            }
+
+            // Everything released with no normal key in between: the user meant
+            // the lone modifier itself.
+            if let lone = pendingModifierKeyCode >= 0 ? pendingModifierKeyCode : nil {
+                binding = HotkeyBinding(keyCode: lone, modifierFlags: 0)
                 stopRecording()
             }
             return nil
         }
+
         if let keyMonitor { eventMonitors.append(keyMonitor) }
         if let flagsMonitor { eventMonitors.append(flagsMonitor) }
     }
 
     private func stopRecording() {
         isRecording = false
+        pendingFlags = 0
+        pendingModifierKeyCode = -1
         for monitor in eventMonitors { NSEvent.removeMonitor(monitor) }
         eventMonitors.removeAll()
     }
 
-    private func keyName(for code: Int) -> String {
-        KeyCodeNames.descriptiveLabel(for: code, layoutFallback: keyCodeToString)
-    }
-
-    private func keyCodeToString(_ code: Int) -> String? {
-        let source = TISCopyCurrentKeyboardInputSource().takeRetainedValue()
-        guard let layoutDataRef = TISGetInputSourceProperty(source, kTISPropertyUnicodeKeyLayoutData) else { return nil }
-        let layoutData = unsafeBitCast(layoutDataRef, to: CFData.self)
-        let layout = unsafeBitCast(CFDataGetBytePtr(layoutData), to: UnsafePointer<UCKeyboardLayout>.self)
-        var deadKeyState: UInt32 = 0
-        var chars = [UniChar](repeating: 0, count: 4)
-        var length: Int = 0
-        let status = UCKeyTranslate(layout, UInt16(code), UInt16(kUCKeyActionDisplay), 0,
-                                     UInt32(LMGetKbdType()), UInt32(kUCKeyTranslateNoDeadKeysBit),
-                                     &deadKeyState, chars.count, &length, &chars)
-        guard status == noErr, length > 0 else { return nil }
-        return String(utf16CodeUnits: chars, count: length).uppercased()
-    }
 }

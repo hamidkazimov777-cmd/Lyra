@@ -2,36 +2,52 @@ import Cocoa
 import CoreGraphics
 import os
 
+/// Which binding fired. The primary key follows the user's dictation mode; the
+/// hands-free key always toggles a hands-free session regardless of that mode.
+enum HotkeyRole: CaseIterable {
+    case primary
+    case handsFree
+}
+
 final class HotkeyMonitor {
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var retainedSelfPtr: UnsafeMutableRawPointer?
     private var globalMonitor: Any?
     private var localMonitor: Any?
-    private let onKeyDown: () -> Void
-    private let onKeyUp: () -> Void
+    private let onKeyDown: (HotkeyRole) -> Void
+    private let onKeyUp: (HotkeyRole) -> Void
     /// Fired when the hotkey turns out to be part of a system chord (e.g. the
     /// user pressed Option+Left, not Option alone). The engine must discard the
     /// recording that `onKeyDown` optimistically started.
     private let onChordAbort: () -> Void
     private let lock = os_unfair_lock_t.allocate(capacity: 1)
 
+    private func binding(for role: HotkeyRole) -> HotkeyBinding {
+        switch role {
+        case .primary:   return AppSettings.shared.primaryHotkey
+        case .handsFree: return AppSettings.shared.handsFreeHotkey
+        }
+    }
+
     private var monitoredKeyCode: CGKeyCode {
-        CGKeyCode(AppSettings.shared.hotkeyKeyCode)
+        CGKeyCode(max(0, AppSettings.shared.hotkeyKeyCode))
     }
 
-    private var isModifierKey: Bool {
-        KeyCodeNames.isModifier(Int(monitoredKeyCode))
+    /// True when the primary binding is a lone modifier, which is the only shape
+    /// that is matched through flagsChanged and subject to chord-abort.
+    private var primaryIsBareModifier: Bool {
+        AppSettings.shared.primaryHotkey.isBareModifier
     }
 
-    private var isKeyHeld = false
-    /// True once another key was pressed while the modifier hotkey was down, so
-    /// the current press is a system chord and never a dictation gesture.
+    private var heldRoles: Set<HotkeyRole> = []
+    /// True once another key was pressed while a bare-modifier hotkey was down,
+    /// so the current press is a system chord and never a dictation gesture.
     private var isChordInProgress = false
 
     init(
-        onKeyDown: @escaping () -> Void,
-        onKeyUp: @escaping () -> Void,
+        onKeyDown: @escaping (HotkeyRole) -> Void,
+        onKeyUp: @escaping (HotkeyRole) -> Void,
         onChordAbort: @escaping () -> Void = {}
     ) {
         self.onKeyDown = onKeyDown
@@ -49,7 +65,9 @@ final class HotkeyMonitor {
         startNSEventMonitors()
 
         guard eventTap == nil else { return }
-        fputs("[HotkeyMonitor] Starting... keyCode=\(monitoredKeyCode) isModifier=\(isModifierKey)\n", stderr)
+        let primary = AppSettings.shared.primaryHotkey
+        let handsFree = AppSettings.shared.handsFreeHotkey
+        fputs("[HotkeyMonitor] Starting... primary=\(primary.keyCode)/\(primary.modifierFlags) bareModifier=\(primary.isBareModifier) handsFree=\(handsFree.keyCode)/\(handsFree.modifierFlags)\n", stderr)
 
         let eventMask = (1 << CGEventType.keyDown.rawValue) |
                         (1 << CGEventType.keyUp.rawValue) |
@@ -98,11 +116,11 @@ final class HotkeyMonitor {
                 fputs("[HotkeyMonitor] Event tap was disabled by macOS! Re-enabling...\n", stderr)
                 CGEvent.tapEnable(tap: tap, enable: true)
                 os_unfair_lock_lock(self.lock)
-                let wasHeld = self.isKeyHeld
-                self.isKeyHeld = false
+                let stuck = self.heldRoles
+                self.heldRoles.removeAll()
                 os_unfair_lock_unlock(self.lock)
-                if wasHeld {
-                    DispatchQueue.main.async { self.onKeyUp() }
+                for role in stuck {
+                    DispatchQueue.main.async { self.onKeyUp(role) }
                 }
             }
         }
@@ -154,18 +172,18 @@ final class HotkeyMonitor {
         }
     }
 
-    private func handleKeyStateChange(isPressed: Bool) {
+    private func handleKeyStateChange(isPressed: Bool, role: HotkeyRole = .primary) {
         os_unfair_lock_lock(lock)
-        let wasHeld = isKeyHeld
+        let wasHeld = heldRoles.contains(role)
         if isPressed && !wasHeld {
-            isKeyHeld = true
+            heldRoles.insert(role)
             isChordInProgress = false
             os_unfair_lock_unlock(lock)
             DispatchQueue.main.async { [weak self] in
-                self?.onKeyDown()
+                self?.onKeyDown(role)
             }
         } else if !isPressed && wasHeld {
-            isKeyHeld = false
+            heldRoles.remove(role)
             // A chord already aborted the gesture on the first companion
             // keystroke; releasing the modifier must not then be read as the
             // short "tap" that latches hands-free recording.
@@ -174,7 +192,7 @@ final class HotkeyMonitor {
             os_unfair_lock_unlock(lock)
             guard !wasChord else { return }
             DispatchQueue.main.async { [weak self] in
-                self?.onKeyUp()
+                self?.onKeyUp(role)
             }
         } else {
             os_unfair_lock_unlock(lock)
@@ -186,8 +204,12 @@ final class HotkeyMonitor {
     /// Delete, ⌥⇧V, dead-key accents, …) — cancel the dictation that keyDown
     /// started and latch the chord flag until the modifier is released.
     private func noteCompanionKeyPress() {
+        // Only meaningful for a bare-modifier binding. When the user has
+        // deliberately bound a chord (fn + `), a companion keystroke IS the
+        // hotkey, and aborting on it would make the binding impossible to use.
+        guard primaryIsBareModifier else { return }
         os_unfair_lock_lock(lock)
-        guard isKeyHeld, !isChordInProgress else {
+        guard heldRoles.contains(.primary), !isChordInProgress else {
             os_unfair_lock_unlock(lock)
             return
         }
@@ -199,60 +221,89 @@ final class HotkeyMonitor {
     }
 
     private func handleNSEvent(_ event: NSEvent) {
-        let keyCode = CGKeyCode(event.keyCode)
-        if isModifierKey {
-            if event.type == .flagsChanged && isTargetModifierKey(keyCode: keyCode) {
-                let flags = CGEventFlags(rawValue: UInt64(event.modifierFlags.rawValue))
-                let isPressed = isModifierPressed(flags)
-                handleKeyStateChange(isPressed: isPressed)
-            } else if event.type == .keyDown || (event.type == .flagsChanged && !isTargetModifierKey(keyCode: keyCode)) {
-                noteCompanionKeyPress()
+        let keyCode = Int(event.keyCode)
+        // NSEvent.ModifierFlags and CGEventFlags share raw values for every bit
+        // HotkeyBinding compares, so the same mask works for both paths.
+        let rawFlags = UInt64(event.modifierFlags.rawValue)
+
+        for role in HotkeyRole.allCases {
+            let binding = self.binding(for: role)
+            guard binding.isAssigned, !binding.isBareModifier, binding.keyCode == keyCode else { continue }
+            if event.type == .keyDown, binding.matches(rawFlags: rawFlags) {
+                handleKeyStateChange(isPressed: true, role: role)
+                return
             }
-        } else {
-            if keyCode == monitoredKeyCode {
-                if event.type == .keyDown {
-                    handleKeyStateChange(isPressed: true)
-                } else if event.type == .keyUp {
-                    handleKeyStateChange(isPressed: false)
-                }
+            if event.type == .keyUp {
+                handleKeyStateChange(isPressed: false, role: role)
+                return
             }
+        }
+
+        for role in HotkeyRole.allCases {
+            let binding = self.binding(for: role)
+            guard binding.isBareModifier else { continue }
+            if event.type == .flagsChanged,
+               isTargetModifierKey(keyCode: CGKeyCode(keyCode), monitored: binding.keyCode) {
+                let isPressed = isModifierPressed(CGEventFlags(rawValue: rawFlags), monitored: binding.keyCode)
+                handleKeyStateChange(isPressed: isPressed, role: role)
+                return
+            }
+        }
+
+        if event.type == .keyDown || event.type == .flagsChanged {
+            noteCompanionKeyPress()
         }
     }
 
     private func handleEvent(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
-        let keyCode = CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode))
+        let keyCode = Int(event.getIntegerValueField(.keyboardEventKeycode))
+        let rawFlags = event.flags.rawValue
 
-        if isModifierKey {
-            if type == .flagsChanged && isTargetModifierKey(keyCode: keyCode) {
-                let flags = event.flags
-                let isPressed = isModifierPressed(flags)
-                handleKeyStateChange(isPressed: isPressed)
+        // Chord and plain-key bindings are matched first: they name an exact
+        // key, so they are more specific than a generic bare-modifier binding.
+        // They are swallowed, otherwise the key would also type its character.
+        for role in HotkeyRole.allCases {
+            let binding = self.binding(for: role)
+            guard binding.isAssigned, !binding.isBareModifier, binding.keyCode == keyCode else { continue }
+            if type == .keyDown, binding.matches(rawFlags: rawFlags) {
+                handleKeyStateChange(isPressed: true, role: role)
+                return nil
+            }
+            if type == .keyUp {
+                var wasHeld = false
+                os_unfair_lock_lock(lock)
+                wasHeld = heldRoles.contains(role)
+                os_unfair_lock_unlock(lock)
+                if wasHeld {
+                    handleKeyStateChange(isPressed: false, role: role)
+                    return nil
+                }
+            }
+        }
+
+        // Bare-modifier bindings, matched through flagsChanged.
+        for role in HotkeyRole.allCases {
+            let binding = self.binding(for: role)
+            guard binding.isBareModifier else { continue }
+            if type == .flagsChanged, isTargetModifierKey(keyCode: CGKeyCode(keyCode), monitored: binding.keyCode) {
+                let isPressed = isModifierPressed(event.flags, monitored: binding.keyCode)
+                handleKeyStateChange(isPressed: isPressed, role: role)
                 // Never swallow a bare modifier. Option/Command/Shift/Control
                 // drive word-wise navigation, deletion, accent entry and every
                 // system shortcut; consuming the event breaks all of them
                 // system-wide while Lyra runs.
                 return Unmanaged.passRetained(event)
             }
-            if type == .keyDown || (type == .flagsChanged && !isTargetModifierKey(keyCode: keyCode)) {
-                noteCompanionKeyPress()
-            }
-        } else {
-            if keyCode == monitoredKeyCode {
-                if type == .keyDown {
-                    handleKeyStateChange(isPressed: true)
-                    return nil
-                } else if type == .keyUp {
-                    handleKeyStateChange(isPressed: false)
-                    return nil
-                }
-            }
+        }
+
+        if type == .keyDown || type == .flagsChanged {
+            noteCompanionKeyPress()
         }
 
         return Unmanaged.passRetained(event)
     }
 
-    private func isTargetModifierKey(keyCode: CGKeyCode) -> Bool {
-        let monitored = Int(monitoredKeyCode)
+    private func isTargetModifierKey(keyCode: CGKeyCode, monitored: Int) -> Bool {
         let actual = Int(keyCode)
         switch monitored {
         case 58, 61: // Option (Left or Right)
@@ -272,9 +323,8 @@ final class HotkeyMonitor {
         }
     }
 
-    private func isModifierPressed(_ flags: CGEventFlags) -> Bool {
-        let code = Int(monitoredKeyCode)
-        switch code {
+    private func isModifierPressed(_ flags: CGEventFlags, monitored: Int) -> Bool {
+        switch monitored {
         case 58, 61: return flags.contains(.maskAlternate)
         case 59, 62: return flags.contains(.maskControl)
         case 56, 60: return flags.contains(.maskShift)

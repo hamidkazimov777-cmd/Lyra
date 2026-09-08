@@ -1,4 +1,5 @@
 import Foundation
+import Carbon.HIToolbox
 
 /// Single source of truth for hotkey keycode → human-readable labels.
 ///
@@ -52,6 +53,21 @@ enum KeyCodeNames {
         Key(code: 48, symbol: "⇥", side: "",      name: "Tab"),
         Key(code: 49, symbol: "␣", side: "",      name: "Space"),
         Key(code: 53, symbol: "⎋", side: "",      name: "Escape"),
+        Key(code: 51, symbol: "⌫", side: "",      name: "Delete"),
+        // Function keys. UCKeyTranslate returns nothing for these, so without an
+        // entry here they would render as the "key" placeholder.
+        Key(code: 122, symbol: "", side: "", name: "F1"),
+        Key(code: 120, symbol: "", side: "", name: "F2"),
+        Key(code: 99,  symbol: "", side: "", name: "F3"),
+        Key(code: 118, symbol: "", side: "", name: "F4"),
+        Key(code: 96,  symbol: "", side: "", name: "F5"),
+        Key(code: 97,  symbol: "", side: "", name: "F6"),
+        Key(code: 98,  symbol: "", side: "", name: "F7"),
+        Key(code: 100, symbol: "", side: "", name: "F8"),
+        Key(code: 101, symbol: "", side: "", name: "F9"),
+        Key(code: 109, symbol: "", side: "", name: "F10"),
+        Key(code: 103, symbol: "", side: "", name: "F11"),
+        Key(code: 111, symbol: "", side: "", name: "F12"),
     ]
 
     private static let byCode: [Int: Key] = Dictionary(uniqueKeysWithValues: all.map { ($0.code, $0) })
@@ -66,15 +82,41 @@ enum KeyCodeNames {
     /// Ordered quick-pick pills for the recorder: Right⌥, Left⌥, Right⌃, Left⌃, Fn.
     static let presets: [Key] = [61, 58, 62, 59, 63].compactMap { byCode[$0] }
 
-    /// Short label for the menu-bar status line. Unknown codes fall back to "key".
+    /// Short label for the menu-bar status line. Codes outside the table (any
+    /// ordinary letter, digit or punctuation key that can now take part in a
+    /// combination) are resolved against the live keyboard layout.
     static func shortLabel(for code: Int) -> String {
-        byCode[code]?.short ?? "key"
+        if let key = byCode[code] { return key.short }
+        return layoutLabel(for: code) ?? "key"
     }
 
     /// Descriptive label for the recorder keycap. Unknown codes use `layoutFallback`
-    /// (the live keyboard-layout translation), then "Key <code>".
-    static func descriptiveLabel(for code: Int, layoutFallback: (Int) -> String? = { _ in nil }) -> String {
+    /// (defaulting to the live keyboard-layout translation), then "Key <code>".
+    static func descriptiveLabel(for code: Int, layoutFallback: (Int) -> String? = layoutLabel) -> String {
         if let key = byCode[code] { return key.descriptive }
         return layoutFallback(code) ?? "Key \(code)"
+    }
+
+    /// Translates a virtual keycode into the character it produces on the user's
+    /// current keyboard layout, e.g. 50 -> "`". Shared by the recorder keycap and
+    /// the status lines so a combination reads the same everywhere.
+    static func layoutLabel(for code: Int) -> String? {
+        guard let source = TISCopyCurrentKeyboardInputSource()?.takeRetainedValue(),
+              let layoutDataRef = TISGetInputSourceProperty(source, kTISPropertyUnicodeKeyLayoutData) else {
+            return nil
+        }
+        let layoutData = unsafeBitCast(layoutDataRef, to: CFData.self)
+        let layout = unsafeBitCast(CFDataGetBytePtr(layoutData), to: UnsafePointer<UCKeyboardLayout>.self)
+        var deadKeyState: UInt32 = 0
+        var chars = [UniChar](repeating: 0, count: 4)
+        var length = 0
+        let status = UCKeyTranslate(
+            layout, UInt16(code), UInt16(kUCKeyActionDisplay), 0,
+            UInt32(LMGetKbdType()), UInt32(kUCKeyTranslateNoDeadKeysBit),
+            &deadKeyState, chars.count, &length, &chars
+        )
+        guard status == noErr, length > 0 else { return nil }
+        let text = String(utf16CodeUnits: chars, count: length)
+        return text.trimmingCharacters(in: .whitespaces).isEmpty ? nil : text.uppercased()
     }
 }

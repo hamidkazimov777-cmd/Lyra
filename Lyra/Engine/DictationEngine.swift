@@ -47,7 +47,12 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
     private var hotkeyMonitor: HotkeyMonitor?
     private var capturedSelectedText: String?
 
-    private let minRecordingDuration: TimeInterval = 0.3
+    /// Recordings shorter than this are discarded. Reads the user's setting —
+    /// the Advanced slider was previously bound to a value nothing consumed, so
+    /// moving it had no effect at all.
+    private var minRecordingDuration: TimeInterval {
+        AppSettings.shared.minimumRecordingDuration
+    }
     private var recordingStartTime: Date?
     private var lastHotkeyToggleTimestamp: TimeInterval = 0
     private var hotkeyDownTimestamp: TimeInterval = 0
@@ -185,8 +190,8 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
 
     private func setupHotkeyMonitor() {
         hotkeyMonitor = HotkeyMonitor(
-            onKeyDown: { [weak self] in self?.handleKeyDown() },
-            onKeyUp: { [weak self] in self?.handleKeyUp() },
+            onKeyDown: { [weak self] role in self?.handleKeyDown(role: role) },
+            onKeyUp: { [weak self] role in self?.handleKeyUp(role: role) },
             onChordAbort: { [weak self] in self?.abortRecordingForChord() }
         )
     }
@@ -236,9 +241,29 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
         }
     }
 
-    private func handleKeyDown() {
+    private func handleKeyDown(role: HotkeyRole = .primary) {
         let now = Date().timeIntervalSince1970
         hotkeyDownTimestamp = now
+
+        // The dedicated hands-free key is a pure toggle: start a hands-free
+        // session, or end the one that is running. It ignores the primary key's
+        // mode entirely, which is the point of having it.
+        if role == .handsFree {
+            guard now - lastHotkeyToggleTimestamp > 0.25 else { return }
+            lastHotkeyToggleTimestamp = now
+            switch state {
+            case .idle:
+                isRecordingStartedByHotkey = false
+                isHandsFreeActive = true
+                startRecording()
+            case .recording:
+                isHandsFreeActive = false
+                stopRecordingAndTranscribe()
+            case .processing, .typing:
+                cancelTranscription()
+            }
+            return
+        }
 
         if state == .processing || state == .typing {
             cancelTranscription()
@@ -320,7 +345,10 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.startSoundGrace, execute: item)
     }
 
-    private func handleKeyUp() {
+    private func handleKeyUp(role: HotkeyRole = .primary) {
+        // Releasing the dedicated hands-free key never stops anything — it is a
+        // toggle, handled entirely on key down.
+        guard role == .primary else { return }
         guard isRecordingStartedByHotkey else { return }
         let duration = Date().timeIntervalSince1970 - hotkeyDownTimestamp
 
@@ -329,17 +357,17 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
             return
         }
 
-        // Push-to-Talk mode:
-        // Smart key handling:
-        // If key was held for >= 0.35s: standard Push-to-Talk (release stops and transcribes)
-        // If key was quickly tapped (< 0.35s): don't discard! Keep recording hands-free.
-        if duration >= 0.35 {
-            fputs("[DictationEngine] Key held for \(String(format: "%.2f", duration))s - push-to-talk stop.\n", stderr)
+        // Hold-or-tap mode, which is both behaviours on one key:
+        //   held >= threshold -> push-to-talk, release stops and transcribes
+        //   tapped < threshold -> keep recording hands-free
+        // The threshold is the user's `handsFreeTapThreshold` setting.
+        if duration >= AppSettings.shared.handsFreeTapThreshold {
+            fputs("[DictationEngine] Key held \(String(format: "%.2f", duration))s - push-to-talk stop.\n", stderr)
             isRecordingStartedByHotkey = false
             isHandsFreeActive = false
             stopRecordingAndTranscribe()
         } else {
-            fputs("[DictationEngine] Key tapped for \(String(format: "%.2f", duration))s - keeping hands-free recording.\n", stderr)
+            fputs("[DictationEngine] Key tapped \(String(format: "%.2f", duration))s - latching hands-free.\n", stderr)
             isHandsFreeActive = true
         }
     }

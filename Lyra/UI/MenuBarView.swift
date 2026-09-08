@@ -239,7 +239,7 @@ struct MenuBarView: View {
     }
 
     private var hotkeyLabel: String {
-        KeyCodeNames.shortLabel(for: settings.hotkeyKeyCode)
+        settings.primaryHotkey.shortLabel
     }
 }
 

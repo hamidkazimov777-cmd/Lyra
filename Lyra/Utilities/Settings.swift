@@ -29,8 +29,11 @@ final class AppSettings: ObservableObject, @unchecked Sendable {
 
     private enum Key: String {
         case hotkeyKeyCode
+        case hotkeyModifierFlags
+        case handsFreeHotkeyKeyCode
+        case handsFreeHotkeyModifierFlags
+        case handsFreeTapThreshold
         case hotkeyMode
-        case toggleHoldDuration
         case textInsertionMethod
         case selectedModel
         case soundFeedbackEnabled
@@ -82,6 +85,57 @@ final class AppSettings: ObservableObject, @unchecked Sendable {
     var hotkeyKeyCode: Int {
         get { defaults.object(forKey: Key.hotkeyKeyCode.rawValue) as? Int ?? 58 } // 58 = Left Option (default per spec)
         set { defaults.set(newValue, forKey: Key.hotkeyKeyCode.rawValue); objectWillChange.send() }
+    }
+
+    /// Modifier flags that must accompany `hotkeyKeyCode`, as an
+    /// `NSEvent.ModifierFlags`/`CGEventFlags` raw value. Zero means the binding
+    /// is a bare key (a lone modifier such as ⌥, or a plain key such as F5).
+    var hotkeyModifierFlags: UInt64 {
+        get { UInt64(defaults.object(forKey: Key.hotkeyModifierFlags.rawValue) as? UInt ?? 0) }
+        set { defaults.set(UInt(newValue), forKey: Key.hotkeyModifierFlags.rawValue); objectWillChange.send() }
+    }
+
+    /// Optional second binding that always toggles hands-free dictation,
+    /// regardless of the primary key's mode. `-1` means unassigned.
+    var handsFreeHotkeyKeyCode: Int {
+        get { defaults.object(forKey: Key.handsFreeHotkeyKeyCode.rawValue) as? Int ?? -1 }
+        set { defaults.set(newValue, forKey: Key.handsFreeHotkeyKeyCode.rawValue); objectWillChange.send() }
+    }
+
+    var handsFreeHotkeyModifierFlags: UInt64 {
+        get { UInt64(defaults.object(forKey: Key.handsFreeHotkeyModifierFlags.rawValue) as? UInt ?? 0) }
+        set { defaults.set(UInt(newValue), forKey: Key.handsFreeHotkeyModifierFlags.rawValue); objectWillChange.send() }
+    }
+
+    var primaryHotkey: HotkeyBinding {
+        get { HotkeyBinding(keyCode: hotkeyKeyCode, modifierFlags: hotkeyModifierFlags) }
+        set {
+            hotkeyKeyCode = newValue.keyCode
+            hotkeyModifierFlags = newValue.modifierFlags
+        }
+    }
+
+    var handsFreeHotkey: HotkeyBinding {
+        get { HotkeyBinding(keyCode: handsFreeHotkeyKeyCode, modifierFlags: handsFreeHotkeyModifierFlags) }
+        set {
+            handsFreeHotkeyKeyCode = newValue.keyCode
+            handsFreeHotkeyModifierFlags = newValue.modifierFlags
+        }
+    }
+
+    /// How long the primary key must be held before releasing it counts as
+    /// "push-to-talk stop". A shorter press is a tap, which leaves recording
+    /// running hands-free. Replaces a threshold that used to be hardcoded at
+    /// 0.35 s in the engine.
+    var handsFreeTapThreshold: Double {
+        get {
+            let stored = defaults.object(forKey: Key.handsFreeTapThreshold.rawValue) as? Double ?? 0.35
+            return max(0.15, min(1.0, stored))
+        }
+        set {
+            defaults.set(max(0.15, min(1.0, newValue)), forKey: Key.handsFreeTapThreshold.rawValue)
+            objectWillChange.send()
+        }
     }
 
     var hotkeyMode: HotkeyMode {
@@ -416,21 +470,6 @@ final class AppSettings: ObservableObject, @unchecked Sendable {
         set { defaults.set(newValue, forKey: Key.floatingWidgetPositionY.rawValue); objectWillChange.send() }
     }
 
-    /// Seconds the hotkey must be held to trigger start/stop in toggle mode.
-    /// Clamped on write to the slider range so out-of-band programmatic writes can't break the UI.
-    var toggleHoldDuration: Double {
-        get {
-            let stored = defaults.object(forKey: Key.toggleHoldDuration.rawValue) as? Double ?? 0.5
-            // Clamp on read too: an out-of-band raw value (older build, corrupt
-            // domain) must not escape the slider range and break the UI/logic.
-            return max(0.5, min(3.0, stored))
-        }
-        set {
-            let clamped = max(0.5, min(3.0, newValue))
-            defaults.set(clamped, forKey: Key.toggleHoldDuration.rawValue)
-            objectWillChange.send()
-        }
-    }
 
     var selectedModel: String {
         get {

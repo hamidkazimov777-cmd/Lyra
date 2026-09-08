@@ -249,3 +249,16 @@
 "You can grant these later in Settings — they're just needed before you can dictate." = "Puedes concederlos más tarde en Ajustes: solo hacen falta antes de poder dictar.";
 "You're all set" = "Todo listo";
 "terms" = "términos";
+
+/* Hotkey combinations, hands-free key, hold/tap threshold */
+"A press shorter than this counts as a tap and latches hands-free recording; anything longer is treated as hold-to-talk." = "Una pulsación más corta que esto cuenta como toque y deja la grabación en manos libres; cualquier cosa más larga se trata como mantener pulsado.";
+"Both on one key" = "Ambos modos en una tecla";
+"Clear" = "Borrar";
+"Default is Left Option (⌥). You can pick any key, or a combination — hold the modifiers and press the key, e.g. fn + `." = "Por defecto es Option izquierdo (⌥). Puedes elegir cualquier tecla o una combinación: mantén los modificadores y pulsa la tecla, p. ej. fn + `.";
+"Hands-Free Key" = "Tecla de manos libres";
+"Hold / tap threshold" = "Umbral de mantener / tocar";
+"Hold or Tap" = "Mantener o tocar";
+"Hold the key while speaking and release to insert — or tap it quickly to keep recording hands-free, then tap again to finish. You do not have to choose between the two." = "Mantén pulsada la tecla mientras hablas y suéltala para insertar — o tócala brevemente para seguir grabando en manos libres y tócala otra vez para terminar. No hay que elegir entre ambos.";
+"Optional second shortcut that always toggles hands-free" = "Atajo secundario opcional que siempre activa el modo manos libres";
+"Press once to start speaking with your hands off the keyboard, press again to finish. Works no matter which mode the main key is in. A combination such as fn + ` is a good choice here." = "Púlsalo una vez para hablar con las manos fuera del teclado y otra vez para terminar. Funciona sea cual sea el modo de la tecla principal. Una combinación como fn + ` encaja bien aquí.";
+"Toggle Only" = "Solo alternar";

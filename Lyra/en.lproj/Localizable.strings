@@ -249,3 +249,16 @@
 "You can grant these later in Settings — they're just needed before you can dictate." = "You can grant these later in Settings — they're just needed before you can dictate.";
 "You're all set" = "You're all set";
 "terms" = "terms";
+
+/* Hotkey combinations, hands-free key, hold/tap threshold */
+"A press shorter than this counts as a tap and latches hands-free recording; anything longer is treated as hold-to-talk." = "A press shorter than this counts as a tap and latches hands-free recording; anything longer is treated as hold-to-talk.";
+"Both on one key" = "Both on one key";
+"Clear" = "Clear";
+"Default is Left Option (⌥). You can pick any key, or a combination — hold the modifiers and press the key, e.g. fn + `." = "Default is Left Option (⌥). You can pick any key, or a combination — hold the modifiers and press the key, e.g. fn + `.";
+"Hands-Free Key" = "Hands-Free Key";
+"Hold / tap threshold" = "Hold / tap threshold";
+"Hold or Tap" = "Hold or Tap";
+"Hold the key while speaking and release to insert — or tap it quickly to keep recording hands-free, then tap again to finish. You do not have to choose between the two." = "Hold the key while speaking and release to insert — or tap it quickly to keep recording hands-free, then tap again to finish. You do not have to choose between the two.";
+"Optional second shortcut that always toggles hands-free" = "Optional second shortcut that always toggles hands-free";
+"Press once to start speaking with your hands off the keyboard, press again to finish. Works no matter which mode the main key is in. A combination such as fn + ` is a good choice here." = "Press once to start speaking with your hands off the keyboard, press again to finish. Works no matter which mode the main key is in. A combination such as fn + ` is a good choice here.";
+"Toggle Only" = "Toggle Only";

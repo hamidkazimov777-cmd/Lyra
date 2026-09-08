@@ -1,5 +1,6 @@
 import Foundation
 import AppKit
+import CoreGraphics
 
 final class AsyncBox<T>: @unchecked Sendable {
     var value: T?
@@ -470,6 +471,86 @@ struct TestRunner {
                                                     ownedChangeCount: secondInjection),
                 "Only the latest injection restores, and it restores the carried-forward clipboard"
             )
+        }
+
+        // Suite 11: Hotkey bindings (combinations)
+        runSuite("Hotkey Bindings") {
+            let fn = CGEventFlags.maskSecondaryFn.rawValue
+            let shift = CGEventFlags.maskShift.rawValue
+            let option = CGEventFlags.maskAlternate.rawValue
+
+            // Bare modifier: the classic "hold Left Option" binding.
+            let bareOption = HotkeyBinding(keyCode: 58, modifierFlags: 0)
+            assertTest(bareOption.isBareModifier, "A lone modifier keycode is a bare-modifier binding")
+            assertTest(!bareOption.isChord, "A bare modifier is not a chord")
+            assertTest(bareOption.isAssigned, "A bare modifier binding is assigned")
+
+            // fn + ` — the combination that was previously unrepresentable.
+            let fnGrave = HotkeyBinding(keyCode: 50, modifierFlags: fn)
+            assertTest(fnGrave.isChord, "fn + ` is a chord binding")
+            assertTest(!fnGrave.isBareModifier, "fn + ` is not a bare modifier")
+            assertTest(fnGrave.matches(rawFlags: fn), "fn + ` matches when only fn is held")
+            assertTest(
+                !fnGrave.matches(rawFlags: fn | shift),
+                "fn + ` does not fire when Shift is also held"
+            )
+            assertTest(!fnGrave.matches(rawFlags: 0), "fn + ` does not fire with no modifiers")
+
+            // Noise bits the system sets must not break matching.
+            let noise = CGEventFlags.maskNonCoalesced.rawValue
+            assertTest(
+                fnGrave.matches(rawFlags: fn | noise),
+                "Irrelevant flag bits (maskNonCoalesced) are ignored when matching"
+            )
+
+            // A plain key with no modifiers is neither bare-modifier nor chord,
+            // but is still a usable binding (e.g. F5).
+            let plainKey = HotkeyBinding(keyCode: 96, modifierFlags: 0)
+            assertTest(plainKey.isAssigned, "A plain key binding is assigned")
+            assertTest(!plainKey.isBareModifier, "A plain key is not a bare modifier")
+            assertTest(!plainKey.isChord, "A plain key with no modifiers is not a chord")
+            assertTest(plainKey.matches(rawFlags: 0), "A plain key matches with no modifiers held")
+            assertTest(
+                !plainKey.matches(rawFlags: option),
+                "A plain key does not fire while a modifier is held"
+            )
+
+            // Unassigned (the optional hands-free key left empty).
+            assertTest(!HotkeyBinding.unassigned.isAssigned, "The unassigned binding reports itself as such")
+            assertTest(!HotkeyBinding.unassigned.isChord, "The unassigned binding is not a chord")
+
+            // Labels
+            assertTest(fnGrave.shortLabel.hasPrefix("fn"), "A chord label carries its modifier prefix (got \(fnGrave.shortLabel))")
+            // The character depends on the active keyboard layout, so assert the
+            // placeholder is gone rather than a specific glyph.
+            assertTest(
+                !fnGrave.shortLabel.contains("key"),
+                "An ordinary key resolves against the keyboard layout instead of the \"key\" placeholder (got \(fnGrave.shortLabel))"
+            )
+            assertTest(
+                HotkeyBinding(keyCode: 96, modifierFlags: 0).shortLabel == "F5",
+                "Function keys have stable labels even though the layout cannot translate them"
+            )
+            assertTest(HotkeyBinding.unassigned.shortLabel == "—", "An unassigned binding renders as a dash")
+
+            // Round-trip through settings storage.
+            let settings = AppSettings.shared
+            let savedPrimary = settings.primaryHotkey
+            let savedHandsFree = settings.handsFreeHotkey
+            settings.primaryHotkey = fnGrave
+            assertTest(settings.primaryHotkey == fnGrave, "A chord survives a round trip through settings")
+            settings.handsFreeHotkey = .unassigned
+            assertTest(!settings.handsFreeHotkey.isAssigned, "The hands-free key can be left unassigned")
+            settings.primaryHotkey = savedPrimary
+            settings.handsFreeHotkey = savedHandsFree
+
+            // Tap threshold is clamped to the slider range on both read and write.
+            let savedThreshold = settings.handsFreeTapThreshold
+            settings.handsFreeTapThreshold = 99
+            assertTest(settings.handsFreeTapThreshold <= 1.0, "The tap threshold is clamped from above")
+            settings.handsFreeTapThreshold = -5
+            assertTest(settings.handsFreeTapThreshold >= 0.15, "The tap threshold is clamped from below")
+            settings.handsFreeTapThreshold = savedThreshold
         }
 
         // Summary

@@ -10,6 +10,7 @@ APP_BUNDLE := $(BUILD_DIR)/Lyra.app
 
 SWIFT_FILES := \
 	Lyra/Utilities/KeychainStore.swift \
+	Lyra/Utilities/HotkeyBinding.swift \
 	Lyra/Utilities/LocalizationService.swift \
 	Lyra/Utilities/Settings.swift \
 	Lyra/Utilities/LanguageCatalog.swift \

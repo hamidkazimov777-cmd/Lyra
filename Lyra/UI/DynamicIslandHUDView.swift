@@ -264,13 +264,7 @@ struct DynamicIslandHUDView: View {
     }
 
     private var hotkeyDisplay: String {
-        let code = settings.hotkeyKeyCode
-        if code == 58 || code == 61 { return "⌥ Option" }
-        if code == 55 || code == 54 { return "⌘ Command" }
-        if code == 59 || code == 62 { return "⌃ Control" }
-        if code == 56 || code == 60 { return "⇧ Shift" }
-        if code == 63 { return "Fn" }
-        return KeyCodeNames.shortLabel(for: code)
+        settings.primaryHotkey.shortLabel
     }
 
     private func islandBackground(isExpanded: Bool, accentColor: Color? = nil) -> some View {

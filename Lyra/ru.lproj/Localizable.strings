@@ -249,3 +249,16 @@
 "You can grant these later in Settings — they're just needed before you can dictate." = "Их можно выдать позже в Настройках — они нужны только для начала диктовки.";
 "You're all set" = "Всё готово";
 "terms" = "терминов";
+
+/* Hotkey combinations, hands-free key, hold/tap threshold */
+"A press shorter than this counts as a tap and latches hands-free recording; anything longer is treated as hold-to-talk." = "Нажатие короче этого порога считается тапом и оставляет запись в режиме свободных рук; всё, что дольше — удержание.";
+"Both on one key" = "Оба режима на одной клавише";
+"Clear" = "Очистить";
+"Default is Left Option (⌥). You can pick any key, or a combination — hold the modifiers and press the key, e.g. fn + `." = "По умолчанию — левый Option (⌥). Можно назначить любую клавишу или комбинацию: зажмите модификаторы и нажмите клавишу, например fn + `.";
+"Hands-Free Key" = "Клавиша свободных рук";
+"Hold / tap threshold" = "Порог удержания / тапа";
+"Hold or Tap" = "Удержание или тап";
+"Hold the key while speaking and release to insert — or tap it quickly to keep recording hands-free, then tap again to finish. You do not have to choose between the two." = "Держите клавишу, пока говорите, и отпустите — текст вставится. Или коротко тапните, чтобы запись продолжилась со свободными руками, и тапните ещё раз для завершения. Выбирать между этими режимами не нужно.";
+"Optional second shortcut that always toggles hands-free" = "Необязательная вторая комбинация, которая всегда включает свободные руки";
+"Press once to start speaking with your hands off the keyboard, press again to finish. Works no matter which mode the main key is in. A combination such as fn + ` is a good choice here." = "Нажмите один раз, чтобы говорить, убрав руки с клавиатуры, и ещё раз — чтобы завершить. Работает независимо от режима основной клавиши. Сюда хорошо подходит комбинация вроде fn + `.";
+"Toggle Only" = "Только переключение";
