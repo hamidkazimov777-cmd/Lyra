@@ -224,7 +224,7 @@ struct ProviderSection: View {
     /// only ever show finished phrases, never words as they are spoken.
     private var streamingPreviewCard: some View {
         SettingsCard(colorScheme: colorScheme) {
-            CardHeader(L10n.tr("Streaming Preview"), subtitle: L10n.tr("Optional. Shows words in the floating island as you speak"))
+            CardHeader(L10n.tr("Streaming Transcription"), subtitle: L10n.tr("Recommended. Transcribes while you speak, instead of uploading the recording afterwards"))
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
@@ -245,7 +245,7 @@ struct ProviderSection: View {
                         .textFieldStyle(.roundedBorder)
                         .font(.system(size: 12, design: .monospaced))
                 }
-                Text(L10n.tr("Stored in the macOS Keychain and sent only to Deepgram. Leave empty to keep using phrase-by-phrase preview from your main provider."))
+                Text(L10n.tr("Stored in the macOS Keychain and sent only to Deepgram. Leave empty to keep transcribing with the provider above."))
                     .font(.system(size: 10))
                     .foregroundStyle(.tertiary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -278,7 +278,7 @@ struct ProviderSection: View {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(.green)
                         .font(.system(size: 12))
-                    Text(L10n.tr("Streaming preview is active. Enable \"Show my words as I speak\" in Appearance to see it."))
+                    Text(L10n.tr("Deepgram transcribes your dictation. The provider above stays as an automatic fallback, and AI post-processing still runs on the result."))
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)

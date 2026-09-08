@@ -499,7 +499,7 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
 
     // MARK: - Live preview (display only)
 
-    private var streamingPreview: DeepgramStreamingClient?
+    private var streamingSession: DeepgramStreamingClient?
     /// Last streaming failure, surfaced in Settings so a bad key is visible
     /// rather than silently degrading to no preview at all.
     @Published private(set) var streamingPreviewError: String?
@@ -577,13 +577,17 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
     /// Skipped when live dictation is running: that mode already streams text
     /// and owns `audioCapture.onSamples`.
     private func startPreviewSessionIfNeeded(live: Bool) {
-        guard !live, AppSettings.shared.livePreviewEnabled else { return }
+        guard !live else { return }
 
-        // Streaming first: it is the only method that shows words while they
-        // are still being spoken. The other two can only show finished phrases.
-        if AppSettings.shared.isDeepgramConfigured, startStreamingPreview() {
+        // Streaming runs whenever Deepgram is configured, not only when the
+        // island is set to show text: the same stream also produces the
+        // transcript that gets inserted, so it is the transcription path now,
+        // not a decoration. The toggle only decides whether it is displayed.
+        if AppSettings.shared.isDeepgramConfigured, startStreamingSession() {
             return
         }
+
+        guard AppSettings.shared.livePreviewEnabled else { return }
         if WhisperBridge.supportsLocalRealtimePreview, let bridge = previewBridge ?? whisperBridge {
             startLocalPreview(bridge: bridge)
             return
@@ -595,7 +599,7 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
 
     /// - Returns: false when the stream could not be opened, so the caller can
     ///   fall back to a non-streaming preview.
-    private func startStreamingPreview() -> Bool {
+    private func startStreamingSession() -> Bool {
         let settings = AppSettings.shared
         let config = DeepgramStreamingClient.Config(
             apiKey: settings.deepgramAPIKey.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -606,7 +610,9 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
             baseURL: settings.deepgramBaseURL
         )
         let client = DeepgramStreamingClient(config: config)
+        let shouldDisplay = settings.livePreviewEnabled
         client.onTranscript = { [weak self] text in
+            guard shouldDisplay else { return }
             Task { @MainActor [weak self] in self?.previewTranscript = text }
         }
         client.onError = { [weak self] message in
@@ -622,10 +628,10 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
             fputs("[DictationEngine] Streaming preview could not start: \(error)\n", stderr)
             return false
         }
-        streamingPreview = client
+        streamingSession = client
         streamingPreviewError = nil
         audioCapture.onSamples = { samples in client.send(samples: samples) }
-        fputs("[DictationEngine] Live preview started (streaming)\n", stderr)
+        fputs("[DictationEngine] Streaming session started (display: \(shouldDisplay))\n", stderr)
         return true
     }
 
@@ -709,10 +715,10 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
     /// so the real transcription is never stuck behind preview work on
     /// WhisperBridge's shared serial queue.
     private func stopPreviewSession() {
-        if let streamingPreview {
-            streamingPreview.onTranscript = nil
-            streamingPreview.stop()
-            self.streamingPreview = nil
+        if let streamingSession {
+            streamingSession.onTranscript = nil
+            streamingSession.stop()
+            self.streamingSession = nil
             if !isLiveSession { audioCapture.onSamples = nil }
         }
         guard previewBuffer != nil || previewSegmenter != nil else { return }
@@ -810,8 +816,13 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
     ///   Push-to-talk passes 0.
     private func stopRecordingAndTranscribe(trimTrailingSeconds: TimeInterval = 0) {
         guard state == .recording else { return }
-        // Release the shared Whisper queue before the real transcription is
-        // submitted, so a queued preview chunk can't delay the actual result.
+        // The streaming session is not torn down here: it already holds the
+        // transcript and just needs flushing, so it is handed to the task below.
+        // The local preview, by contrast, must release the shared Whisper queue
+        // before the real transcription is submitted.
+        let streamedSession = streamingSession
+        streamingSession = nil
+        audioCapture.onSamples = nil
         stopPreviewSession()
         if isLiveSession {
             isSmartEditActive = false
@@ -879,7 +890,27 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
 
             let collected = TranscriptCollector()
             let aiPostProcess = AppSettings.shared.aiPostProcessingEnabled
+
+            // Deepgram already transcribed this audio while it was being spoken.
+            // Using that text skips a second upload of the same recording, skips
+            // the round trip after the key is released, and avoids Whisper's
+            // habit of emitting subtitle boilerplate ("Продолжение следует...")
+            // over silence. An empty or failed stream falls through to the
+            // existing provider with the audio buffer we still hold.
+            var streamedTranscript = ""
+            if let streamedSession {
+                streamedTranscript = await streamedSession.finish()
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                if streamedTranscript.isEmpty {
+                    fputs("[DictationEngine] Streaming returned nothing — falling back to the configured provider.\n", stderr)
+                }
+            }
+            let usedStreaming = !streamedTranscript.isEmpty
+
             let rawTranscript: String
+            if usedStreaming {
+                rawTranscript = streamedTranscript
+            } else {
             do {
                 rawTranscript = try await coordinator.transcribe(
                     samples: audioBuffer,
@@ -914,13 +945,14 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
                 await finish(transcript: nil, error: error.localizedDescription)
                 return
             }
+            }
 
             if cancelFlag.isCancelled {
                 await finish(transcript: nil, error: nil)
                 return
             }
 
-            var finalText = collected.text.isEmpty ? rawTranscript : collected.text
+            var finalText = (usedStreaming || collected.text.isEmpty) ? rawTranscript : collected.text
             finalText = finalText.trimmingCharacters(in: .whitespacesAndNewlines)
 
             var postProcessingError: String? = nil
@@ -1010,13 +1042,16 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
 
             await finish(transcript: finalText, error: nil)
 
+            let sttTag = usedStreaming
+                ? "Deepgram (\(AppSettings.shared.deepgramModel))"
+                : coordinator.lastUsedProvider
             let modelTag: String
             if aiPostProcess {
                 let name = AppSettings.shared.aiPostProcessingModelDisplayName
                 if let err = postProcessingError {
-                    modelTag = "\(coordinator.lastUsedProvider) + \(name) (⚠️ \(err.prefix(25)))"
+                    modelTag = "\(sttTag) + \(name) (⚠️ \(err.prefix(25)))"
                 } else {
-                    modelTag = "\(coordinator.lastUsedProvider) + \(name)"
+                    modelTag = "\(sttTag) + \(name)"
                 }
             } else {
                 modelTag = coordinator.lastUsedProvider

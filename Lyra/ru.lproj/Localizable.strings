@@ -284,3 +284,9 @@
 "Stored in the macOS Keychain and sent only to Deepgram. Leave empty to keep using phrase-by-phrase preview from your main provider." = "Хранится в связке ключей macOS и отправляется только в Deepgram. Оставьте пустым, чтобы превью и дальше шло пофразно через основного провайдера.";
 "Streaming Preview" = "Потоковое превью";
 "Streaming preview is active. Enable \"Show my words as I speak\" in Appearance to see it." = "Потоковое превью активно. Включите «Показывать мои слова, пока я говорю» во «Внешнем виде», чтобы его увидеть.";
+
+/* Deepgram as the primary transcriber */
+"Deepgram transcribes your dictation. The provider above stays as an automatic fallback, and AI post-processing still runs on the result." = "Deepgram распознаёт вашу диктовку. Провайдер выше остаётся автоматическим резервом, а AI-постобработка по-прежнему применяется к результату.";
+"Recommended. Transcribes while you speak, instead of uploading the recording afterwards" = "Рекомендуется. Распознаёт по ходу речи, а не загружает запись после остановки";
+"Stored in the macOS Keychain and sent only to Deepgram. Leave empty to keep transcribing with the provider above." = "Хранится в связке ключей macOS и отправляется только в Deepgram. Оставьте пустым, чтобы распознавание шло через провайдера выше.";
+"Streaming Transcription" = "Потоковое распознавание";

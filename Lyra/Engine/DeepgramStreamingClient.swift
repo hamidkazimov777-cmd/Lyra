@@ -160,6 +160,67 @@ final class DeepgramStreamingClient: NSObject, @unchecked Sendable {
         }
     }
 
+    /// Closes the stream and returns the settled transcript.
+    ///
+    /// Deepgram may still be revising the last turn when the user releases the
+    /// key, so this asks it to flush (`CloseStream`) and waits briefly for the
+    /// final `EndOfTurn` before giving up. Returning early would insert a
+    /// half-finished sentence.
+    func finish(timeout: TimeInterval = 2.0) async -> String {
+        // NSLock must not be taken across an await, so every locked read here
+        // goes through a synchronous helper.
+        guard let task = liveTask() else { return currentText }
+
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            storeFinishContinuation(continuation)
+
+            task.send(.string(#"{"type":"CloseStream"}"#)) { _ in }
+
+            // Deepgram normally answers CloseStream with the last EndOfTurn and
+            // then closes; the timeout covers a socket that never does either.
+            DispatchQueue.global().asyncAfter(deadline: .now() + timeout) { [weak self] in
+                self?.resumeFinish()
+            }
+        }
+
+        let text = currentText
+        stop()
+        return text
+    }
+
+    /// Transcript assembled so far, settled or not.
+    var currentText: String {
+        lock.lock()
+        defer { lock.unlock() }
+        return assembler.text
+    }
+
+    private var finishContinuation: CheckedContinuation<Void, Never>?
+
+    /// The socket, if the stream is still open. Synchronous so `finish` never
+    /// holds the lock across a suspension point.
+    private func liveTask() -> URLSessionWebSocketTask? {
+        lock.lock()
+        defer { lock.unlock() }
+        return isStopped ? nil : task
+    }
+
+    private func storeFinishContinuation(_ continuation: CheckedContinuation<Void, Never>) {
+        lock.lock()
+        finishContinuation = continuation
+        lock.unlock()
+    }
+
+    /// Resumes the `finish` waiter exactly once, whichever event gets there
+    /// first: the flush completing, the socket closing, or the timeout.
+    private func resumeFinish() {
+        lock.lock()
+        let continuation = finishContinuation
+        finishContinuation = nil
+        lock.unlock()
+        continuation?.resume()
+    }
+
     /// Closes the stream. Safe to call more than once.
     func stop() {
         lock.lock()
@@ -181,6 +242,7 @@ final class DeepgramStreamingClient: NSObject, @unchecked Sendable {
         }
         session?.invalidateAndCancel()
         session = nil
+        resumeFinish()
     }
 
     private func receiveNext() {
@@ -193,6 +255,9 @@ final class DeepgramStreamingClient: NSObject, @unchecked Sendable {
             guard let self else { return }
             switch result {
             case .failure(let error):
+                // The socket ending after CloseStream is the expected finish,
+                // not a failure to report.
+                self.resumeFinish()
                 self.fail(error.localizedDescription)
             case .success(let message):
                 switch message {
@@ -247,6 +312,10 @@ final class DeepgramStreamingClient: NSObject, @unchecked Sendable {
         assembler.apply(transcript: transcript, turnIndex: turnIndex, endOfTurn: endOfTurn)
         let text = assembler.text
         lock.unlock()
+
+        // The flush we asked for has landed: the caller waiting in `finish`
+        // can stop waiting.
+        if endOfTurn { resumeFinish() }
 
         guard !text.isEmpty else { return }
         onTranscript?(text)
