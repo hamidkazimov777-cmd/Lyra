@@ -3,7 +3,7 @@
   <h1 align="center">Lyra</h1>
   <p align="center">
     <strong>Next-generation voice dictation and intelligent text editing for macOS.</strong><br>
-    Apple Intelligence aesthetics &bull; Whisper v3 Turbo &bull; Dynamic Island HUD &bull; OpenRouter AI
+    Live streaming transcription &bull; Dynamic Island HUD &bull; LLM post-processing &bull; Bring your own keys
   </p>
   <p align="center">
     <a href="#key-features">Key Features</a> &bull;
@@ -16,8 +16,9 @@
   <p align="center">
     <img src="https://img.shields.io/badge/platform-macOS%2012%2B-blue?style=flat-square" alt="macOS 12+">
     <img src="https://img.shields.io/badge/architecture-Universal%20(Apple%20Silicon%20%2B%20Intel)-6f42c1?style=flat-square" alt="Universal Binary">
-    <img src="https://img.shields.io/badge/speech%20engine-Whisper%20v3%20Turbo-brightgreen?style=flat-square" alt="Whisper Large v3 Turbo">
-    <img src="https://img.shields.io/badge/post--processing-Gemini%20%2F%20OpenAI%20%2F%20DeepSeek-orange?style=flat-square" alt="OpenRouter AI">
+    <img src="https://img.shields.io/badge/speech-Deepgram%20streaming%20%7C%20Whisper-brightgreen?style=flat-square" alt="Speech engines">
+    <img src="https://img.shields.io/badge/post--processing-Gemini%20%2F%20GPT%20%2F%20Claude-orange?style=flat-square" alt="LLM post-processing">
+    <img src="https://img.shields.io/badge/tests-171%20passing-success?style=flat-square" alt="171 tests">
     <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="MIT License">
   </p>
 </p>
@@ -26,24 +27,28 @@
 
 ## Overview
 
-**Lyra** is a premier, privacy-centric macOS application that transforms how you write and edit text across your Mac. 
+**Lyra** is a macOS dictation and voice-editing app that you point at your own API keys.
 
-Combining the blistering speed of **OpenAI Whisper Large v3 Turbo**, the contextual finesse of modern LLMs (**Gemini 3.5 Flash Lite**, **GPT-4o Mini**, **DeepSeek V3**), and an **Apple Intelligence-inspired Dynamic Island HUD**, Lyra delivers commercial-grade voice editing and dictation at fractions of a cent per day without monthly subscription lock-ins.
+Speech is transcribed **while you are still speaking** over a streaming connection, so the words appear in a floating island as they leave your mouth and are ready the instant you release the key. An LLM then cleans up punctuation, filler words and self-corrections before the text lands at your cursor.
 
 Hold a key. Speak. Release. Your polished thoughts appear at the cursor.
+
+> **Two transcription tiers.** With a Deepgram key configured, audio is streamed live and that transcript is what gets inserted. Without one — or if the stream drops mid-sentence — Lyra falls back to uploading the recording to your configured Whisper provider, and to on-device `whisper.cpp` if the network is gone entirely.
 
 ---
 
 ## Key Features
 
-- 🏝️ **Dynamic Island HUD & Fluid Voice Waveforms**: Unobtrusive floating island that tucks under the MacBook camera notch (or centers on external displays). Features real-time fluid organic audio level visualizers, live state badges, and smart error recovery.
-- ⚡ **Whisper Large v3 Turbo Pipeline**: Fast cloud speech-to-text with multi-language precision (Russian, English, and 90+ languages).
-- ✨ **Smart Voice Editing (Selection Transform)**: Highlight text in *any* macOS app (Telegram, VS Code, Safari, Mail, Slack), press your hotkey, and speak a voice command (*"Translate to English"*, *"Make it concise and formal"*, *"Fix punctuation"*). Lyra replaces the selection with the refined result.
-- 🗣️ **Natural Speech Self-Correction**: Made a mistake while talking? Just correct yourself (*"Let's meet on Tuesday... no wait, Wednesday at 5 PM"*). The LLM post-processing layer automatically eliminates abandoned thoughts and outputs only the final intended meaning (*"Let's meet on Wednesday at 5 PM."*).
-- 🛡️ **Zero-Downtime Local Fallback**: If Wi-Fi drops, Lyra seamlessly switches to on-device **whisper.cpp** powered by Apple Metal GPU acceleration. Your workflow never stops.
-- 📋 **Non-Destructive Universal Ingestion**: Text is inserted anywhere via synthesized keystrokes or clipboard paste (`Cmd+V`) with automatic background restoration of previous clipboard contents.
-- 💰 **Pay-As-You-Go ($0.0006 / dictation)**: Connects directly to OpenRouter or OpenAI with your personal API key. $5 gives you over 8,000+ dictations—over 20x cheaper than monthly subscription apps ($10–$15/mo).
-- ⌨️ **Push-to-Talk & Hands-Free Toggle Modes**: Hold and release for quick snippets, or tap to record extended thoughts hands-free.
+- 🌊 **Live Streaming Transcription**: With a Deepgram key, audio is streamed over a WebSocket as you speak and partial results arrive continuously — no waiting for an upload after you stop. The transcript is settled by the time you release the key.
+- 🏝️ **Dynamic Island HUD**: A floating island that grows to fit your words as they arrive, with real-time fluid audio visualizers and live state badges. Follows the display your cursor is on, and stays where you drag it.
+- ✨ **Smart Voice Editing (Selection Transform)**: Highlight text in *any* macOS app (Telegram, VS Code, Safari, Mail, Slack), press your hotkey, and speak a voice command (*"Translate to English"*, *"Make it concise and formal"*). Lyra replaces the selection with the refined result.
+- 🗣️ **Natural Speech Cleanup**: Filler words (*"ну", "вот", "короче"*) are removed, and self-corrections are resolved (*"Let's meet on Tuesday... no wait, Wednesday at 5"* → *"Let's meet on Wednesday at 5."*). Your wording and style are preserved; only the speech artifacts go.
+- 📖 **Vocabulary That Actually Reaches the Engines**: Your custom terms bias recognition *and* are given to the post-processor, so an unfamiliar product name is both more likely to be heard correctly and repaired if it is not.
+- ⌨️ **Hotkey Combinations & Two Gestures**: Bind a bare modifier or a chord such as `fn + \``. Hold to talk, or tap to keep recording hands-free — both on one key, or split across a dedicated hands-free key. Bare modifiers are never swallowed, so `⌥ + ←` and friends keep working system-wide.
+- 🛡️ **Layered Fallback**: Stream → cloud upload → on-device `whisper.cpp`. Local transcription uses the Metal GPU backend on Apple Silicon; on Intel Macs it runs on CPU and is several times slower than realtime, so treat it as a genuine last resort rather than a seamless one.
+- 📋 **Non-Destructive Text Insertion**: Clipboard paste (`Cmd+V`) or synthesized keystrokes. The clipboard is snapshotted and restored, and back-to-back dictations cannot clobber what you had copied.
+- 🔒 **Secrets in the Keychain, Private Mode for History**: Every API key lives in the macOS Keychain. Dictation history is opt-out with one switch, and logs never contain your dictated text.
+- 💰 **Pay-As-You-Go, Your Own Keys**: No subscription and no Lyra server. You pay your providers directly — Deepgram bills streamed audio per minute, the LLM bills tokens per dictation — typically a small fraction of a cent per dictation.
 
 ---
 
@@ -70,25 +75,29 @@ Supported transformations out of the box:
 
 ## Architecture
 
-Lyra is built with a resilient, multi-tiered pipeline:
-
 ```mermaid
-flowchart LR
-    A[Microphone Audio 16kHz] --> B{Text Selected?}
-    B -- No --> C[Whisper v3 Turbo]
-    B -- Yes --> D[Whisper Instruction Capture]
-    C --> E[Raw Draft Transcript]
-    E --> F[OpenRouter LLM Post-Processing]
-    F --> G[Universal TextInjector Cmd+V]
-    D --> H[Smart Transform LLM Engine]
-    H --> G
+flowchart TD
+    A[Microphone 16 kHz mono] --> B{Text selected?}
+    B -- Yes --> S[Instruction capture]
+    B -- No --> T{Deepgram key set?}
+    T -- Yes --> D[Deepgram streaming WebSocket]
+    T -- No --> W[Cloud Whisper upload]
+    D -- stream fails --> W
+    W -- network gone --> L[On-device whisper.cpp]
+    D --> P[LLM post-processing]
+    W --> P
+    L --> P
+    S --> X[Smart Transform LLM]
+    P --> I[TextInjector: clipboard paste or keystrokes]
+    X --> I
+    D -.live partials.-> H[Dynamic Island HUD]
 ```
 
-1. **Audio Capture**: `AVAudioEngine` records and hardware-converts audio to 16 kHz 16-bit mono PCM.
-2. **Accessibility Inspection**: `SelectedTextReader` safely inspects focused UI elements with an 80ms strict timeout to prevent thread freezes.
-3. **Speech-to-Text**: Fast batch submission to OpenRouter / OpenAI Whisper endpoint.
-4. **LLM Polish & Self-Correction**: Contextual refinement via Gemini 3.5 Flash Lite or custom selected models.
-5. **Universal Injection**: `TextInjector` preserves user clipboard snapshot, posts `Cmd+V`, and restores original pasteboard items.
+1. **Audio Capture**: `AVAudioEngine` captures and converts to 16 kHz mono Float32. An optional warm standby keeps the graph prepared so the first syllable is not clipped.
+2. **Accessibility Inspection**: `SelectedTextReader` inspects the focused element off the main thread with an 80 ms timeout per call, so Smart Edit never delays the microphone.
+3. **Speech-to-Text**: Deepgram streaming when configured, otherwise a batch upload to your OpenAI-compatible endpoint, otherwise `whisper.cpp` on device.
+4. **LLM Polish**: Punctuation, casing, filler removal, self-correction repair and vocabulary normalization via the chat-completions endpoint you configure.
+5. **Universal Injection**: `TextInjector` snapshots the pasteboard, posts `Cmd+V`, and restores the original contents once the target app has read it.
 
 ---
 
@@ -107,7 +116,7 @@ flowchart LR
 git clone --recurse-submodules https://github.com/hamidkazimov777-cmd/Lyra.git
 cd Lyra
 
-# 2. Build universal binary (arm64 + x86_64)
+# 2. Build universal binary (arm64 + x86_64); builds whisper.cpp on first run
 make app
 
 # 3. Install to Applications
@@ -115,17 +124,26 @@ cp -R build/Lyra.app /Applications/
 open /Applications/Lyra.app
 ```
 
+Other targets:
+
+```bash
+make test        # 171 unit tests, no network access required
+make dmg         # packaged disk image
+make xcodeproj   # generate Lyra.xcodeproj (requires xcodegen)
+```
+
 ---
 
 ## Configuration
 
-Lyra lives in your macOS menu bar and Dynamic Island:
+Lyra lives in your macOS menu bar and in the floating island.
 
-- **Hotkey**: Configure your preferred key in **Settings → Hotkeys** (Default: `Option`).
-- **Provider & Models**: Enter your OpenRouter or OpenAI API key in **Settings → Speech**.
-  - Recommended STT: `openai/whisper-large-v3-turbo`
-  - Recommended Post-Processing: `google/gemini-3.5-flash-lite` (latency ~0.7s) or `openai/gpt-4o-mini`.
-- **System Prompt**: Fine-tune your AI post-processing prompt directly from the settings panel.
+- **Hotkeys** (*Settings → Hotkeys*): default `Left Option`. Any key or combination works — hold the modifiers and press the key to record a chord such as `fn + \``. Choose *Hold or Tap* to get push-to-talk and hands-free on one key, and optionally bind a second key that always toggles hands-free.
+- **Streaming transcription** (*Settings → Provider → Streaming Transcription*): paste a [Deepgram](https://deepgram.com) key to enable live transcription. Model defaults to `flux-general-multi`, which detects the spoken language itself. Leave empty to transcribe with the provider below instead.
+- **Speech provider** (*Settings → Provider*): your OpenAI-compatible endpoint and key — used as the fallback when streaming is off or fails. Recommended STT model: `openai/whisper-large-v3-turbo`.
+- **AI text provider** (*Settings → Provider → AI Text Provider*): the chat-completions endpoint for post-processing and Smart Voice Editing, configured separately from speech. Recommended: `google/gemini-3.5-flash-lite`.
+- **Vocabulary** (*Settings → Dictation*): names and terms you use often. They bias recognition and are given to the post-processor.
+- **System prompt** (*Settings → Dictation*): edit the post-processing rules directly, including how aggressively filler words are removed.
 
 ---
 
