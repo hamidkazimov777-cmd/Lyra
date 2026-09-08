@@ -18,6 +18,12 @@ struct VADChunkGate {
     /// Force a boundary before Whisper's 30 s hard window: ~25 s.
     static let ceilingWindows = 781
 
+    /// Per-instance latency ceiling. The live preview lowers this so text keeps
+    /// appearing during uninterrupted speech: with the default, a speaker who
+    /// never pauses sees nothing for 25 seconds. The cut lands on the quietest
+    /// window seen so far, so it still avoids slicing mid-syllable where it can.
+    var ceilingWindows: Int = VADChunkGate.ceilingWindows
+
     enum Event: Equatable {
         case none
         /// Windows [0, chunkEndWindow) are the chunk; the caller carries the
@@ -46,13 +52,18 @@ struct VADChunkGate {
         if trailingSilence >= Self.pauseWindows {
             let hadSpeech = speechWindows >= Self.minSpeechWindows
             let end = windowCount - trailingSilence
+            let ceiling = ceilingWindows
             self = VADChunkGate()
+            self.ceilingWindows = ceiling
             return hadSpeech ? .commit(chunkEndWindow: end) : .drop
         }
-        if windowCount >= Self.ceilingWindows {
+        if windowCount >= ceilingWindows {
             let end = max(1, minProbIndex)
+            let hadSpeech = speechWindows >= Self.minSpeechWindows
+            let ceiling = ceilingWindows
             self = VADChunkGate()
-            return .commit(chunkEndWindow: end)
+            self.ceilingWindows = ceiling
+            return hadSpeech ? .commit(chunkEndWindow: end) : .drop
         }
         return .none
     }
@@ -83,13 +94,24 @@ final class VADSegmenter {
     /// by design, per repo convention).
     var onChunk: (([Float]) -> Void)?
 
-    init(vadModelPath: String) throws {
+    /// - Parameter maxChunkSeconds: latency ceiling for a chunk. Defaults to the
+    ///   ~25 s used by live dictation; the preview passes a few seconds so text
+    ///   keeps arriving while the speaker talks without pausing.
+    init(vadModelPath: String, maxChunkSeconds: Double? = nil) throws {
         let params = whisper_vad_default_context_params()
         guard let ctx = whisper_vad_init_from_file_with_params(vadModelPath, params) else {
             throw WhisperError.modelLoadFailed(vadModelPath)
         }
         vadContext = ctx
+
+        if let maxChunkSeconds {
+            let windows = max(1, Int(maxChunkSeconds * 16000 / Double(VADChunkGate.windowSamples)))
+            configuredCeilingWindows = windows
+            gate.ceilingWindows = windows
+        }
     }
+
+    private var configuredCeilingWindows: Int?
 
     deinit { whisper_vad_free(vadContext) }
 
@@ -126,6 +148,7 @@ final class VADSegmenter {
         chunkSamples.removeAll()
         chunkProbs.removeAll()
         gate = VADChunkGate()
+        if let configuredCeilingWindows { gate.ceilingWindows = configuredCeilingWindows }
         whisper_vad_reset_state(vadContext)
     }
 

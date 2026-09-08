@@ -600,7 +600,11 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
         guard AppSettings.shared.transcriptionProviderType == .api else { return false }
         guard let vadPath = ModelManager.shared.vadModelPath() else { return false }
         do {
-            let segmenter = try VADSegmenter(vadModelPath: vadPath)
+            // Short latency ceiling: with the default ~25 s, someone speaking
+            // without pausing would see nothing until they stopped. This keeps
+            // text arriving during continuous speech, at the cost of one extra
+            // request per ceiling hit.
+            let segmenter = try VADSegmenter(vadModelPath: vadPath, maxChunkSeconds: Self.cloudPreviewMaxChunkSeconds)
             let flag = CancellationFlag()
             let (stream, continuation) = AsyncStream.makeStream(of: [Float].self)
 
@@ -619,6 +623,10 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
             return false
         }
     }
+
+    /// How long the cloud preview will wait for a natural pause before sending
+    /// what it has anyway.
+    private static let cloudPreviewMaxChunkSeconds: Double = 3.5
 
     private func runCloudPreviewConsumer(stream: AsyncStream<[Float]>, flag: CancellationFlag) {
         let service = coordinator.apiService

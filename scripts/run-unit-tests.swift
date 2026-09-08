@@ -584,6 +584,54 @@ struct TestRunner {
             settings.handsFreeTapThreshold = savedThreshold
         }
 
+        // Suite 12: VAD latency ceiling
+        runSuite("VAD Latency Ceiling") {
+            // Default gate: an uninterrupted speaker gets nothing until the
+            // ~25 s ceiling, which is fine for live dictation but far too long
+            // for a preview that is meant to track speech.
+            var normal = VADChunkGate()
+            var committedAt: Int? = nil
+            for i in 0..<VADChunkGate.ceilingWindows + 5 {
+                if case .commit = normal.ingest(probability: 0.9) { committedAt = i; break }
+            }
+            assertTest(
+                committedAt == VADChunkGate.ceilingWindows - 1,
+                "Continuous speech commits only at the default ceiling (got \(String(describing: committedAt)))"
+            )
+
+            // Preview gate: a much lower ceiling, so text keeps arriving.
+            var fast = VADChunkGate()
+            fast.ceilingWindows = 100
+            var fastCommit: Int? = nil
+            for i in 0..<200 {
+                if case .commit = fast.ingest(probability: 0.9) { fastCommit = i; break }
+            }
+            assertTest(fastCommit == 99, "A lowered ceiling commits early during continuous speech (got \(String(describing: fastCommit)))")
+
+            // The ceiling must survive the reset that a commit performs, or only
+            // the first chunk would be responsive.
+            var second: Int? = nil
+            for i in 0..<200 {
+                if case .commit = fast.ingest(probability: 0.9) { second = i; break }
+            }
+            assertTest(second == 99, "The lowered ceiling persists across commits (got \(String(describing: second)))")
+
+            // A pause still wins over the ceiling, and near-silence is dropped
+            // rather than sent as an empty request.
+            var paused = VADChunkGate()
+            paused.ceilingWindows = 100
+            var event: VADChunkGate.Event = .none
+            for _ in 0..<VADChunkGate.minSpeechWindows { _ = paused.ingest(probability: 0.9) }
+            for _ in 0..<VADChunkGate.pauseWindows { event = paused.ingest(probability: 0.0) }
+            assertTest(event != .none && event != .drop, "A natural pause still commits before the ceiling")
+
+            var quiet = VADChunkGate()
+            quiet.ceilingWindows = 100
+            var quietEvent: VADChunkGate.Event = .none
+            for i in 0..<120 { quietEvent = quiet.ingest(probability: 0.0); if quietEvent != .none { break }; _ = i }
+            assertTest(quietEvent == .drop, "Silence is dropped, never sent as a request (got \(quietEvent))")
+        }
+
         // Summary
         print("\n" + String(repeating: "=", count: 50))
         print("\(bold)Test Results: \(green)\(passed) passed\(reset), \(failed > 0 ? "\(red)\(failed) failed" : "\(green)0 failed")\(reset)")
