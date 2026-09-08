@@ -193,6 +193,33 @@ struct TestRunner {
             assertTest(settings.aiPostProcessingPrompt.contains("Ты выполняешь постобработку диктовки"), "AI post-processing prompt configured correctly")
             assertTest(settings.aiPostProcessingPrompt.contains("Нормализуй общеизвестные названия"), "AI prompt includes normalization rule")
             assertTest(settings.aiPostProcessingPrompt.contains("Возвращай только исправленный текст без комментариев и пояснений"), "AI prompt ends with strict no-comments requirement")
+
+            // Filler removal and self-correction repair were nominally in the
+            // prompt but never fired, because "удаляй слова-паразиты" sat next to
+            // "не сокращай текст" and "если есть сомнения, оставляй исходный
+            // вариант" — the model resolved the contradiction conservatively and
+            // kept every "ну" and "вот". These assert both the concrete rules and
+            // the sentence that settles the conflict.
+            let prompt = settings.aiPostProcessingPrompt
+            for filler in ["«ну»", "«вот»", "«короче»", "«как бы»", "«типа»"] {
+                assertTest(prompt.contains(filler), "The prompt names \(filler) as a filler to remove")
+            }
+            assertTest(
+                prompt.contains("сокращением НЕ считается"),
+                "The prompt states that removing fillers does not count as shortening"
+            )
+            assertTest(
+                prompt.contains("«Встретимся в пять... ой нет, в шесть» → «Встретимся в шесть»"),
+                "The prompt shows a worked self-correction example"
+            )
+            assertTest(
+                prompt.contains("«вот этот файл»"),
+                "The prompt carves out fillers that carry meaning"
+            )
+            assertTest(
+                !prompt.contains("Не сокращай текст."),
+                "The blanket do-not-shorten rule that blocked filler removal is gone"
+            )
             assertTest(settings.aiPostProcessingTimeoutSeconds == 5.0, "AI post-processing timeout defaults to 5.0s (got \(settings.aiPostProcessingTimeoutSeconds))")
 
             let openAIService = OpenAISpeechService()
