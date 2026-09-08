@@ -275,3 +275,12 @@
 /* Live preview on machines without GPU acceleration */
 "This Mac has no GPU acceleration for local Whisper, so a live preview needs a cloud provider. Switch to Cloud / Custom API in Provider settings to use it." = "На этом Mac нет GPU-ускорения для локального Whisper, поэтому живое превью требует облачного провайдера. Переключитесь на «Облако / свой API» в настройках провайдера.";
 "This Mac has no GPU acceleration, so each finished phrase is transcribed by your cloud provider as you speak. Text appears a phrase at a time, and each phrase costs one extra API request." = "На этом Mac нет GPU-ускорения, поэтому каждая законченная фраза распознаётся вашим облачным провайдером по ходу речи. Текст появляется пофразно, и каждая фраза стоит одного дополнительного запроса к API.";
+
+/* Deepgram streaming preview */
+"A model whose name contains \"multi\" detects the spoken language itself." = "Модель, в названии которой есть \"multi\", определяет язык речи сама.";
+"Deepgram API Key" = "Ключ API Deepgram";
+"Model" = "Модель";
+"Optional. Shows words in the floating island as you speak" = "Необязательно. Показывает слова в плавающем острове по ходу речи";
+"Stored in the macOS Keychain and sent only to Deepgram. Leave empty to keep using phrase-by-phrase preview from your main provider." = "Хранится в связке ключей macOS и отправляется только в Deepgram. Оставьте пустым, чтобы превью и дальше шло пофразно через основного провайдера.";
+"Streaming Preview" = "Потоковое превью";
+"Streaming preview is active. Enable \"Show my words as I speak\" in Appearance to see it." = "Потоковое превью активно. Включите «Показывать мои слова, пока я говорю» во «Внешнем виде», чтобы его увидеть.";

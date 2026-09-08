@@ -78,6 +78,9 @@ final class AppSettings: ObservableObject, @unchecked Sendable {
         case fastMicrophoneStartEnabled
         // Live preview in the HUD
         case livePreviewEnabled
+        // Deepgram streaming preview
+        case deepgramModel
+        case deepgramBaseURL
         // One-shot migration marker: secrets moved from UserDefaults to Keychain
         case didMigrateSecretsToKeychain
     }
@@ -205,6 +208,39 @@ final class AppSettings: ObservableObject, @unchecked Sendable {
     private enum Secret {
         static let sttAPIKey = "apiKey"
         static let llmAPIKey = "llmAPIKey"
+        static let deepgramAPIKey = "deepgramAPIKey"
+    }
+
+    // MARK: - Deepgram streaming preview
+
+    /// Key for Deepgram's streaming API. Stored in the Keychain, like every
+    /// other secret. Its presence is what enables word-by-word live preview:
+    /// an OpenAI-compatible /audio/transcriptions endpoint cannot produce
+    /// partial results at all, so without a streaming provider the preview can
+    /// only ever show finished phrases.
+    var deepgramAPIKey: String {
+        get { KeychainStore.get(Secret.deepgramAPIKey) ?? "" }
+        set { KeychainStore.set(newValue, for: Secret.deepgramAPIKey); objectWillChange.send() }
+    }
+
+    var isDeepgramConfigured: Bool {
+        !deepgramAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var deepgramModel: String {
+        get {
+            let stored = defaults.string(forKey: Key.deepgramModel.rawValue) ?? ""
+            return stored.isEmpty ? DeepgramStreamingClient.defaultModel : stored
+        }
+        set { defaults.set(newValue, forKey: Key.deepgramModel.rawValue); objectWillChange.send() }
+    }
+
+    var deepgramBaseURL: String {
+        get {
+            let stored = defaults.string(forKey: Key.deepgramBaseURL.rawValue) ?? ""
+            return stored.isEmpty ? DeepgramStreamingClient.defaultBaseURL : stored
+        }
+        set { defaults.set(newValue, forKey: Key.deepgramBaseURL.rawValue); objectWillChange.send() }
     }
 
     /// Speech-to-text provider API key. Stored in the Keychain, never in UserDefaults.

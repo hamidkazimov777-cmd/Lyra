@@ -12,6 +12,7 @@ struct ProviderSection: View {
     @State private var testResult: (success: Bool, message: String)?
     @State private var showAPIKey = false
     @State private var showLLMKey = false
+    @State private var showDeepgramKey = false
     @State private var isFetchingModels = false
     @State private var fetchModelsError: String?
 
@@ -209,6 +210,80 @@ struct ProviderSection: View {
             }
 
             aiProviderCard
+            streamingPreviewCard
+        }
+    }
+
+    // MARK: - Streaming preview provider
+
+    /// Deepgram's streaming API, used only for the live preview in the HUD.
+    ///
+    /// It exists as a separate provider because an OpenAI-compatible
+    /// `/audio/transcriptions` endpoint is request/response and has no partial
+    /// results by construction — without a streaming socket the preview can
+    /// only ever show finished phrases, never words as they are spoken.
+    private var streamingPreviewCard: some View {
+        SettingsCard(colorScheme: colorScheme) {
+            CardHeader(L10n.tr("Streaming Preview"), subtitle: L10n.tr("Optional. Shows words in the floating island as you speak"))
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(L10n.tr("Deepgram API Key"))
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button(showDeepgramKey ? L10n.tr("Hide") : L10n.tr("Show")) { showDeepgramKey.toggle() }
+                        .buttonStyle(.borderless)
+                        .font(.system(size: 11))
+                }
+                if showDeepgramKey {
+                    TextField("", text: $settings.deepgramAPIKey)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.system(size: 12, design: .monospaced))
+                } else {
+                    SecureField("", text: $settings.deepgramAPIKey)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.system(size: 12, design: .monospaced))
+                }
+                Text(L10n.tr("Stored in the macOS Keychain and sent only to Deepgram. Leave empty to keep using phrase-by-phrase preview from your main provider."))
+                    .font(.system(size: 10))
+                    .foregroundStyle(.tertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(L10n.tr("Model"))
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.secondary)
+                TextField(DeepgramStreamingClient.defaultModel, text: $settings.deepgramModel)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(size: 12, design: .monospaced))
+                Text(L10n.tr("A model whose name contains \"multi\" detects the spoken language itself."))
+                    .font(.system(size: 10))
+                    .foregroundStyle(.tertiary)
+            }
+
+            if let error = engine.streamingPreviewError {
+                HStack(alignment: .top, spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                        .font(.system(size: 12))
+                    Text(error)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            } else if settings.isDeepgramConfigured {
+                HStack(spacing: 6) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                        .font(.system(size: 12))
+                    Text(L10n.tr("Streaming preview is active. Enable \"Show my words as I speak\" in Appearance to see it."))
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
         }
     }
 

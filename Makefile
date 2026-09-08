@@ -31,6 +31,7 @@ SWIFT_FILES := \
 	Lyra/Engine/TextCorrector.swift \
 	Lyra/Engine/VADSegmenter.swift \
 	Lyra/Engine/PreviewAudioBuffer.swift \
+	Lyra/Engine/DeepgramStreamingClient.swift \
 	Lyra/Utilities/HotkeyMonitor.swift \
 	Lyra/Utilities/PermissionManager.swift \
 	Lyra/Utilities/LaunchAtLoginHelper.swift \

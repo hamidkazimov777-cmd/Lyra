@@ -659,6 +659,73 @@ struct TestRunner {
             assertTest(quietEvent == .drop, "Silence is dropped, never sent as a request (got \(quietEvent))")
         }
 
+        // Suite 13: Deepgram streaming transcript assembly
+        runSuite("Streaming Transcript Assembly") {
+            // --- v2 Flux: each message carries the WHOLE hypothesis for its
+            // turn, revised as more audio arrives. Appending would duplicate.
+            var a = DeepgramTranscriptAssembler()
+            a.apply(transcript: "Проверяю", turnIndex: 0, endOfTurn: false)
+            assertTest(a.text == "Проверяю", "The first partial shows immediately")
+            a.apply(transcript: "Проверяю приложение", turnIndex: 0, endOfTurn: false)
+            assertTest(a.text == "Проверяю приложение", "A revised partial replaces the previous one, never appends")
+            a.apply(transcript: "Проверяю приложение прямо сейчас", turnIndex: 0, endOfTurn: true)
+            assertTest(a.text == "Проверяю приложение прямо сейчас", "EndOfTurn settles the turn")
+
+            a.apply(transcript: "Вторая", turnIndex: 1, endOfTurn: false)
+            assertTest(
+                a.text == "Проверяю приложение прямо сейчас Вторая",
+                "A new turn is appended after the settled one (got \(a.text))"
+            )
+            a.apply(transcript: "Вторая фраза", turnIndex: 1, endOfTurn: true)
+            assertTest(a.text == "Проверяю приложение прямо сейчас Вторая фраза", "Turns accumulate in order")
+
+            // A dropped EndOfTurn must not merge two turns into one.
+            var b = DeepgramTranscriptAssembler()
+            b.apply(transcript: "Первая", turnIndex: 0, endOfTurn: false)
+            b.apply(transcript: "Вторая", turnIndex: 1, endOfTurn: false)
+            assertTest(b.text == "Первая Вторая", "A new turn index settles the previous turn even without EndOfTurn")
+
+            // Silence must not wipe the tail already on screen.
+            var c = DeepgramTranscriptAssembler()
+            c.apply(transcript: "Привет", turnIndex: 0, endOfTurn: false)
+            c.apply(transcript: "", turnIndex: 0, endOfTurn: false)
+            assertTest(c.text == "Привет", "An empty partial does not retract what is displayed")
+            c.apply(transcript: "", turnIndex: 0, endOfTurn: true)
+            assertTest(c.text == "Привет", "An empty final keeps the last good hypothesis")
+
+            // --- v1 fallback: no turn index, is_final settles a segment.
+            var v1 = DeepgramTranscriptAssembler()
+            v1.apply(transcript: "one", turnIndex: nil, endOfTurn: false)
+            v1.apply(transcript: "one two", turnIndex: nil, endOfTurn: true)
+            v1.apply(transcript: "three", turnIndex: nil, endOfTurn: true)
+            assertTest(v1.text == "one two three", "The v1 interim/final shape still assembles (got \(v1.text))")
+
+            var empty = DeepgramTranscriptAssembler()
+            assertTest(empty.text.isEmpty, "A fresh assembler has no text")
+            empty.apply(transcript: "  ", turnIndex: 0, endOfTurn: true)
+            assertTest(empty.text.isEmpty, "Whitespace-only results produce nothing")
+
+            var reset = DeepgramTranscriptAssembler()
+            reset.apply(transcript: "gone", turnIndex: 0, endOfTurn: true)
+            reset.reset()
+            assertTest(reset.text.isEmpty, "reset() clears both settled and live text")
+
+            // --- Endpoint construction
+            let config = DeepgramStreamingClient.Config(
+                apiKey: "k", model: "flux-general-multi", language: nil
+            )
+            let url = DeepgramStreamingClient.endpoint(for: config)?.absoluteString ?? ""
+            assertTest(url.hasPrefix("wss://api.deepgram.com/v2/listen"), "Streaming uses the v2 endpoint (got \(url))")
+            assertTest(url.contains("encoding=linear16"), "Audio is declared as linear16 PCM")
+            assertTest(url.contains("sample_rate=16000"), "The sample rate matches the capture format")
+            assertTest(url.contains("eot_threshold"), "End-of-turn tuning is sent")
+            assertTest(!url.contains("language="), "A multilingual model is not pinned to one language")
+
+            let pinned = DeepgramStreamingClient.Config(apiKey: "k", model: "flux-general-en", language: "ru")
+            let pinnedURL = DeepgramStreamingClient.endpoint(for: pinned)?.absoluteString ?? ""
+            assertTest(pinnedURL.contains("language=ru"), "A non-multilingual model gets an explicit language")
+        }
+
         // Summary
         print("\n" + String(repeating: "=", count: 50))
         print("\(bold)Test Results: \(green)\(passed) passed\(reset), \(failed > 0 ? "\(red)\(failed) failed" : "\(green)0 failed")\(reset)")

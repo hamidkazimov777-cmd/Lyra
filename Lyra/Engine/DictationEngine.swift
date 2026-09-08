@@ -499,6 +499,10 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
 
     // MARK: - Live preview (display only)
 
+    private var streamingPreview: DeepgramStreamingClient?
+    /// Last streaming failure, surfaced in Settings so a bad key is visible
+    /// rather than silently degrading to no preview at all.
+    @Published private(set) var streamingPreviewError: String?
     private var previewBuffer: PreviewAudioBuffer?
     private var previewSegmenter: VADSegmenter?
     private var previewContinuation: AsyncStream<[Float]>.Continuation?
@@ -575,6 +579,11 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
     private func startPreviewSessionIfNeeded(live: Bool) {
         guard !live, AppSettings.shared.livePreviewEnabled else { return }
 
+        // Streaming first: it is the only method that shows words while they
+        // are still being spoken. The other two can only show finished phrases.
+        if AppSettings.shared.isDeepgramConfigured, startStreamingPreview() {
+            return
+        }
         if WhisperBridge.supportsLocalRealtimePreview, let bridge = previewBridge ?? whisperBridge {
             startLocalPreview(bridge: bridge)
             return
@@ -582,6 +591,42 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
         if !startCloudPreview() {
             fputs("[DictationEngine] No usable live preview on this machine — skipping.\n", stderr)
         }
+    }
+
+    /// - Returns: false when the stream could not be opened, so the caller can
+    ///   fall back to a non-streaming preview.
+    private func startStreamingPreview() -> Bool {
+        let settings = AppSettings.shared
+        let config = DeepgramStreamingClient.Config(
+            apiKey: settings.deepgramAPIKey.trimmingCharacters(in: .whitespacesAndNewlines),
+            model: settings.deepgramModel,
+            // The multilingual Flux models detect the language themselves;
+            // pinning it would break dictating in a second language.
+            language: settings.deepgramModel.contains("multi") ? nil : settings.selectedLanguage.rawValue,
+            baseURL: settings.deepgramBaseURL
+        )
+        let client = DeepgramStreamingClient(config: config)
+        client.onTranscript = { [weak self] text in
+            Task { @MainActor [weak self] in self?.previewTranscript = text }
+        }
+        client.onError = { [weak self] message in
+            Task { @MainActor [weak self] in
+                fputs("[DictationEngine] Streaming preview failed: \(message)\n", stderr)
+                self?.streamingPreviewError = message
+                self?.stopPreviewSession()
+            }
+        }
+        do {
+            try client.start()
+        } catch {
+            fputs("[DictationEngine] Streaming preview could not start: \(error)\n", stderr)
+            return false
+        }
+        streamingPreview = client
+        streamingPreviewError = nil
+        audioCapture.onSamples = { samples in client.send(samples: samples) }
+        fputs("[DictationEngine] Live preview started (streaming)\n", stderr)
+        return true
     }
 
     private func startLocalPreview(bridge: WhisperBridge) {
@@ -664,6 +709,12 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
     /// so the real transcription is never stuck behind preview work on
     /// WhisperBridge's shared serial queue.
     private func stopPreviewSession() {
+        if let streamingPreview {
+            streamingPreview.onTranscript = nil
+            streamingPreview.stop()
+            self.streamingPreview = nil
+            if !isLiveSession { audioCapture.onSamples = nil }
+        }
         guard previewBuffer != nil || previewSegmenter != nil else { return }
         previewFlag?.cancel()
         previewContinuation?.finish()
