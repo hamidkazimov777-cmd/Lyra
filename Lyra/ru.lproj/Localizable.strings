@@ -262,3 +262,9 @@
 "Optional second shortcut that always toggles hands-free" = "Необязательная вторая комбинация, которая всегда включает свободные руки";
 "Press once to start speaking with your hands off the keyboard, press again to finish. Works no matter which mode the main key is in. A combination such as fn + ` is a good choice here." = "Нажмите один раз, чтобы говорить, убрав руки с клавиатуры, и ещё раз — чтобы завершить. Работает независимо от режима основной клавиши. Сюда хорошо подходит комбинация вроде fn + `.";
 "Toggle Only" = "Только переключение";
+
+/* Live preview in the floating island */
+"Downloading the models the preview needs — it starts working when they finish." = "Загружаются модели, нужные для превью — оно заработает после завершения.";
+"Requires the voice-activity model and a local Whisper model (Models section)." = "Требуются модель детекции речи и локальная модель Whisper (раздел «Модели»).";
+"Show my words as I speak" = "Показывать мои слова, пока я говорю";
+"The floating island expands to show a running transcript while you talk. Uses the local model for the preview; the text that gets inserted still comes from your configured provider." = "Плавающий остров расширяется и показывает текст по ходу речи. Для превью используется локальная модель; вставляется по-прежнему текст от вашего провайдера.";

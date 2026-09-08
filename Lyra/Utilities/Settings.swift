@@ -76,6 +76,8 @@ final class AppSettings: ObservableObject, @unchecked Sendable {
         case historyLoggingEnabled
         // Audio
         case fastMicrophoneStartEnabled
+        // Live preview in the HUD
+        case livePreviewEnabled
         // One-shot migration marker: secrets moved from UserDefaults to Keychain
         case didMigrateSecretsToKeychain
     }
@@ -408,6 +410,18 @@ final class AppSettings: ObservableObject, @unchecked Sendable {
     var fastMicrophoneStartEnabled: Bool {
         get { defaults.object(forKey: Key.fastMicrophoneStartEnabled.rawValue) as? Bool ?? false }
         set { defaults.set(newValue, forKey: Key.fastMicrophoneStartEnabled.rawValue); objectWillChange.send() }
+    }
+
+    /// Shows what you are saying inside the floating HUD while you speak, using
+    /// the local Whisper model as a fast preview. The final text still goes
+    /// through whichever provider and post-processing you configured, so the
+    /// preview never affects what gets inserted.
+    ///
+    /// Off by default: it needs both a local Whisper model and the voice-activity
+    /// model on disk, which a cloud-only user would otherwise never download.
+    var livePreviewEnabled: Bool {
+        get { defaults.object(forKey: Key.livePreviewEnabled.rawValue) as? Bool ?? false }
+        set { defaults.set(newValue, forKey: Key.livePreviewEnabled.rawValue); objectWillChange.send() }
     }
 
     // MARK: - Privacy

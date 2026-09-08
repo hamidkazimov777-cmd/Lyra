@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct AppearanceSection: View {
+    @ObservedObject private var modelManager = ModelManager.shared
+
     @ObservedObject var settings: AppSettings
     let colorScheme: ColorScheme
 
@@ -21,6 +23,33 @@ struct AppearanceSection: View {
                     .padding(.vertical, 4)
 
                 Toggle(L10n.tr("Show expanded overlay during recording"), isOn: $settings.showRecordingHUD)
+
+                Toggle(isOn: Binding(
+                    get: { settings.livePreviewEnabled },
+                    set: { enabled in
+                        settings.livePreviewEnabled = enabled
+                        guard enabled else { return }
+                        // Explicit consent, not a silent background pull: the
+                        // preview needs the voice-activity model, and a
+                        // cloud-only user has no local Whisper model either.
+                        if !modelManager.isModelDownloaded(ModelManager.ModelInfo.vadSilero),
+                           !modelManager.isDownloading(.vadSilero) {
+                            modelManager.startDownload(.vadSilero)
+                        }
+                        if !modelManager.hasUsableModel(for: settings.selectedLanguage) {
+                            modelManager.startDownload(LanguageCatalog.defaultModel(for: settings.selectedLanguage))
+                        }
+                    }
+                )) {
+                    Text(L10n.tr("Show my words as I speak"))
+                        .font(.system(size: 13))
+                }
+                .toggleStyle(.switch)
+
+                Text(livePreviewCaption)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
                     .font(.system(size: 13))
 
                 Text(L10n.tr("Shows real-time voice waveform and live transcript as you dictate."))
@@ -65,5 +94,20 @@ struct AppearanceSection: View {
                 }
             }
         }
+    }
+
+    private var livePreviewCaption: String {
+        guard settings.livePreviewEnabled else {
+            return L10n.tr("The floating island expands to show a running transcript while you talk. Uses the local model for the preview; the text that gets inserted still comes from your configured provider.")
+        }
+        let hasVAD = modelManager.isModelDownloaded(ModelManager.ModelInfo.vadSilero)
+        let hasWhisper = modelManager.hasUsableModel(for: settings.selectedLanguage)
+        if hasVAD && hasWhisper {
+            return L10n.tr("The floating island expands to show a running transcript while you talk. Uses the local model for the preview; the text that gets inserted still comes from your configured provider.")
+        }
+        if modelManager.isDownloading(.vadSilero) || !hasWhisper {
+            return L10n.tr("Downloading the models the preview needs — it starts working when they finish.")
+        }
+        return L10n.tr("Requires the voice-activity model and a local Whisper model (Models section).")
     }
 }

@@ -13,6 +13,12 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
     @Published private(set) var state: DictationState = .idle
     @Published private(set) var lastTranscription: String = ""
     @Published private(set) var liveTranscription: String = ""
+
+    /// What the user is saying, shown in the HUD while recording. Produced by the
+    /// local model purely for display — the text that actually gets inserted is
+    /// still the one from the configured provider, so an imperfect preview never
+    /// leaks into the result.
+    @Published private(set) var previewTranscript: String = ""
     @Published private(set) var isModelLoaded: Bool = false
     @Published private(set) var modelLoadError: String?
 
@@ -175,6 +181,8 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
     private func returnToIdle() {
         pendingStartSoundWorkItem?.cancel()
         pendingStartSoundWorkItem = nil
+        stopPreviewSession()
+        previewTranscript = ""
         state = .idle
         isHandsFreeActive = false
         isSmartEditActive = false
@@ -317,6 +325,7 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
             if isLiveSession {
                 teardownLiveSession()
             }
+            stopPreviewSession()
             _ = audioCapture.stopRecording()
             returnToIdle()
         case .processing, .typing:
@@ -449,6 +458,7 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
 
         transcriptionError = nil
         liveTranscription = ""
+        previewTranscript = ""
         state = .recording
         recordingStartTime = Date()
         recordingGeneration &+= 1
@@ -477,6 +487,94 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
         }
 
         captureSelectionForSmartEditIfNeeded()
+        startPreviewSessionIfNeeded(live: live)
+    }
+
+    // MARK: - Live preview (display only)
+
+    private var previewSegmenter: VADSegmenter?
+    private var previewContinuation: AsyncStream<[Float]>.Continuation?
+    private var previewFlag: CancellationFlag?
+
+    /// Starts a display-only transcription of the incoming audio.
+    ///
+    /// Skipped when the live-dictation session is running, because that already
+    /// streams text and owns `audioCapture.onSamples`.
+    private func startPreviewSessionIfNeeded(live: Bool) {
+        guard !live, AppSettings.shared.livePreviewEnabled else { return }
+        guard let vadPath = ModelManager.shared.vadModelPath(),
+              let bridge = whisperBridge else {
+            fputs("[DictationEngine] Live preview unavailable (missing VAD or Whisper model)\n", stderr)
+            return
+        }
+        do {
+            let segmenter = try VADSegmenter(vadModelPath: vadPath)
+            let flag = CancellationFlag()
+            let (stream, continuation) = AsyncStream.makeStream(of: [Float].self)
+
+            previewSegmenter = segmenter
+            previewContinuation = continuation
+            previewFlag = flag
+
+            segmenter.onChunk = { chunk in continuation.yield(chunk) }
+            audioCapture.onSamples = { samples in segmenter.append(samples) }
+            segmenter.start()
+            runPreviewConsumer(stream: stream, bridge: bridge, flag: flag)
+        } catch {
+            fputs("[DictationEngine] Live preview init failed: \(error)\n", stderr)
+        }
+    }
+
+    /// Cancels the preview. Queued chunks see the flag and abort, so the final
+    /// transcription is not stuck behind preview work on the shared Whisper queue.
+    private func stopPreviewSession() {
+        guard previewSegmenter != nil else { return }
+        previewFlag?.cancel()
+        previewContinuation?.finish()
+        previewSegmenter?.onChunk = nil
+        previewSegmenter = nil
+        previewContinuation = nil
+        previewFlag = nil
+        if !isLiveSession { audioCapture.onSamples = nil }
+    }
+
+    private func runPreviewConsumer(
+        stream: AsyncStream<[Float]>,
+        bridge: WhisperBridge,
+        flag: CancellationFlag
+    ) {
+        // Utility priority: the preview must never compete with the real
+        // transcription for the shared Whisper queue.
+        Task.detached(priority: .utility) { [weak self] in
+            var accumulated = ""
+            for await chunk in stream {
+                guard !flag.isCancelled else { continue }
+                let language = AppSettings.shared.selectedLanguage
+                let prompt = Self.buildPrompt(
+                    base: AppSettings.shared.vocabularyPrompt,
+                    customTerms: AppSettings.shared.customTerms,
+                    transcriptTail: accumulated
+                )
+                let piece = TranscriptCollector()
+                _ = try? await bridge.transcribe(
+                    audioBuffer: chunk,
+                    language: language,
+                    prompt: prompt,
+                    cancelFlag: flag,
+                    vad: false
+                ) { segment in
+                    _ = piece.joinAndAppend(segment)
+                }
+                guard !flag.isCancelled else { continue }
+                let corrected = TextCorrector.shared
+                    .correct(piece.text, language: language)
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !corrected.isEmpty else { continue }
+                accumulated = accumulated.isEmpty ? corrected : accumulated + " " + corrected
+                let snapshot = accumulated
+                await MainActor.run { [weak self] in self?.previewTranscript = snapshot }
+            }
+        }
     }
 
     /// Monotonic id for the current recording. A selection lookup that returns
@@ -512,6 +610,9 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
     ///   Push-to-talk passes 0.
     private func stopRecordingAndTranscribe(trimTrailingSeconds: TimeInterval = 0) {
         guard state == .recording else { return }
+        // Release the shared Whisper queue before the real transcription is
+        // submitted, so a queued preview chunk can't delay the actual result.
+        stopPreviewSession()
         if isLiveSession {
             isSmartEditActive = false
             capturedSelectedText = nil

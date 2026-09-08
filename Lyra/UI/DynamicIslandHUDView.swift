@@ -157,6 +157,12 @@ struct DynamicIslandHUDView: View {
 
     // MARK: - Recording State (Expanded Island with Fluid Organic Waveform)
 
+    /// Text to show while recording: the live-dictation stream if that mode is
+    /// on, otherwise the display-only local preview.
+    private var transcriptInProgress: String {
+        engine.liveTranscription.isEmpty ? engine.previewTranscript : engine.liveTranscription
+    }
+
     private var recordingIsland: some View {
         let isSmartEdit = engine.isSmartEditActive
         let accentColor: Color = isSmartEdit ? Color(red: 0.65, green: 0.35, blue: 1.0) : .red
@@ -189,13 +195,18 @@ struct DynamicIslandHUDView: View {
                 .frame(width: 110, height: 22)
 
             // Live Transcript or Status text
-            if !engine.liveTranscription.isEmpty {
-                Text(engine.liveTranscription)
-                    .font(.system(size: 12, weight: .medium))
+            if !transcriptInProgress.isEmpty {
+                // Grows with the text instead of truncating it: the window
+                // resizes itself to fit (see RecordingHUDWindow.resizeToFit).
+                Text(transcriptInProgress)
+                    .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(.primary)
-                    .lineLimit(1)
-                    .truncationMode(.head)
-                    .frame(maxWidth: 160, alignment: .leading)
+                    .lineLimit(3)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: 300, alignment: .leading)
+                    .animation(.easeOut(duration: 0.18), value: transcriptInProgress)
+                    .transition(.opacity)
             } else if isSmartEdit {
                 HStack(spacing: 4) {
                     Image(systemName: "wand.and.stars")

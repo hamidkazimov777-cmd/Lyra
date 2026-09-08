@@ -262,3 +262,9 @@
 "Optional second shortcut that always toggles hands-free" = "Optional second shortcut that always toggles hands-free";
 "Press once to start speaking with your hands off the keyboard, press again to finish. Works no matter which mode the main key is in. A combination such as fn + ` is a good choice here." = "Press once to start speaking with your hands off the keyboard, press again to finish. Works no matter which mode the main key is in. A combination such as fn + ` is a good choice here.";
 "Toggle Only" = "Toggle Only";
+
+/* Live preview in the floating island */
+"Downloading the models the preview needs — it starts working when they finish." = "Downloading the models the preview needs — it starts working when they finish.";
+"Requires the voice-activity model and a local Whisper model (Models section)." = "Requires the voice-activity model and a local Whisper model (Models section).";
+"Show my words as I speak" = "Show my words as I speak";
+"The floating island expands to show a running transcript while you talk. Uses the local model for the preview; the text that gets inserted still comes from your configured provider." = "The floating island expands to show a running transcript while you talk. Uses the local model for the preview; the text that gets inserted still comes from your configured provider.";
