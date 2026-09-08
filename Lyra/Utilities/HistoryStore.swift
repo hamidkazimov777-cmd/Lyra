@@ -71,6 +71,11 @@ final class HistoryStore: ObservableObject, @unchecked Sendable {
             return
         }
 
+        // Tighten permissions on a file left behind by an older build, which
+        // created it world-readable. Doing it on load means existing users are
+        // fixed at launch rather than at their next dictation.
+        try? fileManager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+
         do {
             let data = try Data(contentsOf: url)
             items = try JSONDecoder().decode([HistoryItem].self, from: data)
@@ -87,6 +92,13 @@ final class HistoryStore: ObservableObject, @unchecked Sendable {
         do {
             let data = try JSONEncoder().encode(items)
             try data.write(to: url, options: .atomic)
+            // Dictation content should not be readable by other accounts on the
+            // machine. An atomic write replaces the file, so re-apply 0600 each
+            // time rather than assuming the previous mode survived.
+            try? fileManager.setAttributes(
+                [.posixPermissions: 0o600],
+                ofItemAtPath: url.path
+            )
         } catch {
             fputs("[HistoryStore] Failed to save history: \(error)\n", stderr)
         }

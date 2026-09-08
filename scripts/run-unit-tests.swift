@@ -415,6 +415,63 @@ struct TestRunner {
             )
         }
 
+        // Suite 10: Clipboard ownership (TextInjector)
+        runSuite("Clipboard Ownership") {
+            // Fresh state: nothing injected yet, so never claim ownership.
+            assertTest(
+                !TextInjector.ownsClipboard(currentChangeCount: 7, lastInjectedChangeCount: -1),
+                "No clipboard is owned before the first injection"
+            )
+            assertTest(
+                !TextInjector.shouldRestoreClipboard(currentChangeCount: 0, ownedChangeCount: -1),
+                "A restore never fires without a prior injection"
+            )
+
+            // We wrote at changeCount 10 and nothing has touched it since.
+            assertTest(
+                TextInjector.ownsClipboard(currentChangeCount: 10, lastInjectedChangeCount: 10),
+                "The board is ours while the changeCount still matches our write"
+            )
+            assertTest(
+                TextInjector.shouldRestoreClipboard(currentChangeCount: 10, ownedChangeCount: 10),
+                "The user's clipboard is restored when nothing else touched the board"
+            )
+
+            // The user copied something during the restore window.
+            assertTest(
+                !TextInjector.shouldRestoreClipboard(currentChangeCount: 11, ownedChangeCount: 10),
+                "A restore is abandoned once the user copies something new"
+            )
+
+            // Two dictations inside one restore window. The second injection must
+            // see the board as ours and carry the ORIGINAL snapshot forward,
+            // otherwise it captures Lyra's own text as "the user's clipboard" and
+            // restores that — which silently destroyed the real clipboard.
+            let userClipboardWriteCount = 10
+            let firstInjection = 11
+            let secondInjection = 12
+            assertTest(
+                !TextInjector.ownsClipboard(currentChangeCount: userClipboardWriteCount,
+                                            lastInjectedChangeCount: -1),
+                "The first injection snapshots the user's real clipboard"
+            )
+            assertTest(
+                TextInjector.ownsClipboard(currentChangeCount: firstInjection,
+                                           lastInjectedChangeCount: firstInjection),
+                "The second injection recognizes Lyra's own text on the board"
+            )
+            assertTest(
+                !TextInjector.shouldRestoreClipboard(currentChangeCount: secondInjection,
+                                                     ownedChangeCount: firstInjection),
+                "The superseded first restore does not fire"
+            )
+            assertTest(
+                TextInjector.shouldRestoreClipboard(currentChangeCount: secondInjection,
+                                                    ownedChangeCount: secondInjection),
+                "Only the latest injection restores, and it restores the carried-forward clipboard"
+            )
+        }
+
         // Summary
         print("\n" + String(repeating: "=", count: 50))
         print("\(bold)Test Results: \(green)\(passed) passed\(reset), \(failed > 0 ? "\(red)\(failed) failed" : "\(green)0 failed")\(reset)")

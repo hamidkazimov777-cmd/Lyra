@@ -37,8 +37,9 @@ Lyra performs **no** telemetry, analytics, crash reporting, auto-update checks, 
 ### What is stored on your Mac
 
 - **API keys** are stored in the **macOS Keychain** (`kSecClassGenericPassword`, service `com.lyra.Lyra`, `kSecAttrAccessibleAfterFirstUnlock`, never synced to iCloud). Builds up to 1.2.2 stored them in plaintext `UserDefaults`; 1.3.0 migrates them into the Keychain on first launch and deletes the plaintext copy.
-- **Dictation history** — up to 1000 recent transcriptions — is written to `~/Library/Application Support/Lyra/history.json` as **unencrypted JSON**, protected only by macOS file permissions. Turn this off with **Settings → Advanced → Private mode**, and clear existing entries from the History tab.
+- **Dictation history** — up to 1000 recent transcriptions — is written to `~/Library/Application Support/Lyra/history.json` as **unencrypted JSON**, written with `0600` permissions so other accounts on the machine cannot read it, but not encrypted. Turn this off with **Settings → Advanced → Private mode**, and clear existing entries from the History tab.
 - **Preferences** live in `~/Library/Preferences/com.lyra.Lyra.plist` and contain no secrets.
+- **Logs contain no dictated text.** Release builds log timings and character counts only; the content-bearing log lines are compiled out (`#if DEBUG`), so dictated text never reaches Console.app or the unified log.
 - **Audio is never persisted.** Recorded samples exist only in memory for the duration of a session.
 
 ### Clipboard

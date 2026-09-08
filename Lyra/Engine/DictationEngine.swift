@@ -423,20 +423,19 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
         liveTranscription = ""
         state = .recording
         recordingStartTime = Date()
+        recordingGeneration &+= 1
         scheduleStartSound()
-
-        // Inspect highlighted selection in frontmost application for Smart Edit mode
-        if AppSettings.shared.smartVoiceEditingEnabled {
-            capturedSelectedText = SelectedTextReader.getSelectedText()
-            isSmartEditActive = (capturedSelectedText != nil)
-        } else {
-            capturedSelectedText = nil
-            isSmartEditActive = false
-        }
+        capturedSelectedText = nil
+        isSmartEditActive = false
 
         let live = startLiveSessionIfEnabled()
-        fputs("[DictationEngine] Recording (live: \(live), smartEdit: \(isSmartEditActive))\n", stderr)
+        fputs("[DictationEngine] Recording (live: \(live))\n", stderr)
 
+        // Open the microphone FIRST. The Accessibility query below costs up to
+        // three 80 ms round trips to the focused app, and running it before
+        // startRecording() delayed capture by that much on every dictation —
+        // the real cause of clipped first syllables, on top of the engine's own
+        // start latency.
         do {
             try audioCapture.startRecording()
         } catch {
@@ -446,6 +445,36 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
             teardownLiveSession()
             state = .idle
             isHandsFreeActive = false
+            return
+        }
+
+        captureSelectionForSmartEditIfNeeded()
+    }
+
+    /// Monotonic id for the current recording. A selection lookup that returns
+    /// after its session ended (or after a new one started) is discarded rather
+    /// than attaching itself to the wrong dictation.
+    private var recordingGeneration: UInt64 = 0
+
+    /// Reads the frontmost app's selected text off the main thread.
+    ///
+    /// The Accessibility round trips block for up to 3 x 80 ms. The result is
+    /// only consumed when the recording stops, seconds later, so there is no
+    /// reason to make the user wait for it before the microphone opens.
+    private func captureSelectionForSmartEditIfNeeded() {
+        guard AppSettings.shared.smartVoiceEditingEnabled else { return }
+        let generation = recordingGeneration
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let selection = SelectedTextReader.getSelectedText()
+            guard selection != nil else { return }
+            DispatchQueue.main.async {
+                guard let self,
+                      self.state == .recording,
+                      self.recordingGeneration == generation else { return }
+                self.capturedSelectedText = selection
+                self.isSmartEditActive = true
+                fputs("[DictationEngine] Smart Edit armed for this recording\n", stderr)
+            }
         }
     }
 

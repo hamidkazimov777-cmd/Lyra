@@ -2,11 +2,19 @@ import AppKit
 import CoreGraphics
 import Foundation
 
-/// @unchecked Sendable: the only stored state is an immutable `CGEventSource?` and
-/// a serial `DispatchQueue`. All typing runs on that queue; no mutable shared state.
+/// @unchecked Sendable: typing runs on a serial queue, and the clipboard
+/// ownership state shared with the deferred restore is guarded by `clipboardLock`.
 final class TextInjector: @unchecked Sendable {
     private let source: CGEventSource?
     private let typingQueue = DispatchQueue(label: "com.lyra.typing", qos: .userInteractive)
+
+    // Clipboard ownership tracking, guarded by `clipboardLock` because the
+    // restore runs on a global queue while injection runs on `typingQueue`.
+    private let clipboardLock = NSLock()
+    /// changeCount of the pasteboard write this injector made last, or -1.
+    private var lastInjectedChangeCount: Int = -1
+    /// The user's clipboard, held across back-to-back injections.
+    private var pendingRestoreItems: [[NSPasteboard.PasteboardType: Data]]?
 
     init() {
         source = CGEventSource(stateID: .combinedSessionState)
@@ -30,24 +38,51 @@ final class TextInjector: @unchecked Sendable {
 
     /// Universal injection via NSPasteboard and synthesized Cmd+V.
     private func injectViaPasteboard(text: String, source: CGEventSource?) {
+        // Content-bearing form is DEBUG-only: stderr from a bundled app is captured
+        // by launchd into the unified log, where dictated text would persist in
+        // Console.app beyond the user's reach — and would survive Private mode.
+        #if DEBUG
         fputs("[TextInjector] Pasting via pasteboard (\(text.count) chars): \"\(text.prefix(40))\"\n", stderr)
+        #else
+        fputs("[TextInjector] Pasting via pasteboard (\(text.count) chars)\n", stderr)
+        #endif
 
         let pasteboard = NSPasteboard.general
 
-        // 1. Snapshot previous clipboard items to avoid losing user's clipboard
-        let previousItems = pasteboard.pasteboardItems?.compactMap { item -> [NSPasteboard.PasteboardType: Data]? in
-            var dict = [NSPasteboard.PasteboardType: Data]()
-            for type in item.types {
-                if let data = item.data(forType: type) {
-                    dict[type] = data
+        // 1. Decide what to put back afterwards.
+        //
+        // If the board still holds the text *we* pasted last time, re-snapshotting
+        // would capture Lyra's own output as "the user's clipboard" and restore
+        // that instead. Two dictations inside the restore window used to destroy
+        // the real clipboard exactly this way, so carry the original snapshot
+        // forward rather than taking a new one.
+        let previousItems: [[NSPasteboard.PasteboardType: Data]]?
+        clipboardLock.lock()
+        if Self.ownsClipboard(currentChangeCount: pasteboard.changeCount,
+                              lastInjectedChangeCount: lastInjectedChangeCount) {
+            previousItems = pendingRestoreItems
+        } else {
+            previousItems = pasteboard.pasteboardItems?.compactMap { item -> [NSPasteboard.PasteboardType: Data]? in
+                var dict = [NSPasteboard.PasteboardType: Data]()
+                for type in item.types {
+                    if let data = item.data(forType: type) {
+                        dict[type] = data
+                    }
                 }
+                return dict.isEmpty ? nil : dict
             }
-            return dict.isEmpty ? nil : dict
         }
+        clipboardLock.unlock()
 
-        // 2. Set new text on pasteboard
-        pasteboard.clearContents()
+        // 2. Set new text on pasteboard. clearContents() returns the resulting
+        // changeCount, which is our proof of ownership at restore time.
+        let ownChangeCount = pasteboard.clearContents()
         pasteboard.setString(text, forType: .string)
+
+        clipboardLock.lock()
+        lastInjectedChangeCount = ownChangeCount
+        pendingRestoreItems = previousItems
+        clipboardLock.unlock()
 
         // Give the pasteboard subsystem a moment to commit data
         Thread.sleep(forTimeInterval: 0.02)
@@ -86,22 +121,53 @@ final class TextInjector: @unchecked Sendable {
 
         fputs("[TextInjector] Cmd+V posted successfully\n", stderr)
 
-        // 4. Restore previous clipboard after target application has processed the paste
+        // 4. Restore the user's clipboard once the target app has read the paste.
+        //
+        // The window is generous because slow Electron and remote-desktop targets
+        // can take several hundred milliseconds to act on Cmd+V, and restoring
+        // early makes them paste the wrong thing. Waiting longer is safe now that
+        // the changeCount guard below aborts the restore the moment anything else
+        // touches the board — including the user copying something.
         if let previousItems, !previousItems.isEmpty {
-            DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 0.45) {
-                // Only restore if user hasn't copied anything new in the meantime
-                if pasteboard.string(forType: .string) == text {
-                    pasteboard.clearContents()
-                    for itemDict in previousItems {
-                        let item = NSPasteboardItem()
-                        for (type, data) in itemDict {
-                            item.setData(data, forType: type)
-                        }
-                        pasteboard.writeObjects([item])
+            DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + Self.clipboardRestoreDelay) { [weak self] in
+                guard let self else { return }
+                self.clipboardLock.lock()
+                defer { self.clipboardLock.unlock() }
+
+                // Someone changed the board after us (the user, or a later
+                // injection that owns its own restore) — leave it alone.
+                guard Self.shouldRestoreClipboard(currentChangeCount: pasteboard.changeCount,
+                                                  ownedChangeCount: self.lastInjectedChangeCount) else { return }
+
+                pasteboard.clearContents()
+                for itemDict in previousItems {
+                    let item = NSPasteboardItem()
+                    for (type, data) in itemDict {
+                        item.setData(data, forType: type)
                     }
+                    pasteboard.writeObjects([item])
                 }
+                self.lastInjectedChangeCount = -1
+                self.pendingRestoreItems = nil
             }
         }
+    }
+
+    /// How long to leave the dictated text on the clipboard before restoring.
+    static let clipboardRestoreDelay: TimeInterval = 0.8
+
+    /// True when the board still holds this injector's own last paste, meaning a
+    /// fresh snapshot would capture Lyra's output instead of the user's
+    /// clipboard and the earlier snapshot must be carried forward instead.
+    /// Pure/static so the ownership math is unit-testable without NSPasteboard.
+    static func ownsClipboard(currentChangeCount: Int, lastInjectedChangeCount: Int) -> Bool {
+        lastInjectedChangeCount >= 0 && currentChangeCount == lastInjectedChangeCount
+    }
+
+    /// True when the deferred restore may proceed: only if nothing has touched
+    /// the pasteboard since this injector wrote to it.
+    static func shouldRestoreClipboard(currentChangeCount: Int, ownedChangeCount: Int) -> Bool {
+        ownsClipboard(currentChangeCount: currentChangeCount, lastInjectedChangeCount: ownedChangeCount)
     }
 
     /// Keystroke simulation using chunks of UTF-16 code units.

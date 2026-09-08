@@ -32,6 +32,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // preferences plist before anything reads it.
         AppSettings.shared.migrateSecretsToKeychainIfNeeded()
 
+        // Touching the store loads history.json, which also tightens the file's
+        // permissions if an older build left it world-readable. It is loaded on
+        // the first dictation regardless, so this only moves the work earlier.
+        _ = HistoryStore.shared
+
         // Create the popover
         popover = NSPopover()
         popover.contentSize = NSSize(width: 300, height: 400)

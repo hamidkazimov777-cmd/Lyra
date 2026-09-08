@@ -26,6 +26,10 @@ final class SelectedTextReader {
             return nil
         }
 
+        // AXUIElementCopyAttributeValue hands back an untyped CFTypeRef. A
+        // misbehaving app returning something else would crash a force cast, so
+        // check the CFTypeID before trusting it.
+        guard CFGetTypeID(focusedApp) == AXUIElementGetTypeID() else { return nil }
         let appElement = focusedApp as! AXUIElement
         AXUIElementSetMessagingTimeout(appElement, 0.08)
 
@@ -40,6 +44,7 @@ final class SelectedTextReader {
             return nil
         }
 
+        guard CFGetTypeID(focusedElement) == AXUIElementGetTypeID() else { return nil }
         let uiElement = focusedElement as! AXUIElement
         AXUIElementSetMessagingTimeout(uiElement, 0.08)
 
