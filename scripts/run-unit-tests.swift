@@ -747,6 +747,50 @@ struct TestRunner {
             )
         }
 
+        // Suite 14: Vocabulary reaches post-processing
+        runSuite("Vocabulary In Post-Processing") {
+            let base = "БАЗОВЫЕ ПРАВИЛА"
+
+            // No vocabulary: the prompt must be left exactly as the user wrote it.
+            assertTest(
+                DictationEngine.buildPostProcessingPrompt(base: base, customTerms: []) == base,
+                "An empty vocabulary leaves the prompt untouched"
+            )
+            assertTest(
+                DictationEngine.buildPostProcessingPrompt(base: base, customTerms: ["  ", ""]) == base,
+                "Blank vocabulary entries do not produce an empty term list"
+            )
+
+            // Recognition bias alone cannot fix a term the speech model mangles
+            // ("Aqua Voice" -> "аквавосон"); the post-processor can only repair
+            // it if it is told the term exists.
+            let withTerms = DictationEngine.buildPostProcessingPrompt(
+                base: base,
+                customTerms: ["Aqua Voice", "SwiftUI", "Deepgram"]
+            )
+            assertTest(withTerms.hasPrefix(base), "The user's own rules stay at the front of the prompt")
+            assertTest(withTerms.contains("Aqua Voice"), "Vocabulary terms are handed to the post-processor")
+            assertTest(withTerms.contains("SwiftUI") && withTerms.contains("Deepgram"), "Every term is included")
+            assertTest(
+                withTerms.contains("восстанови правильное написание"),
+                "The prompt asks for mangled terms to be repaired"
+            )
+            assertTest(
+                withTerms.contains("Не подставляй эти термины туда, где их не было"),
+                "The prompt guards against inserting terms the user never said"
+            )
+
+            let flooded = DictationEngine.buildPostProcessingPrompt(
+                base: base,
+                customTerms: (0..<200).map { "term\($0)" }
+            )
+            assertTest(
+                !flooded.contains("term199"),
+                "A long vocabulary is capped so it cannot crowd out the rules"
+            )
+            assertTest(flooded.contains("term0"), "The cap keeps the earliest terms")
+        }
+
         // Summary
         print("\n" + String(repeating: "=", count: 50))
         print("\(bold)Test Results: \(green)\(passed) passed\(reset), \(failed > 0 ? "\(red)\(failed) failed" : "\(green)0 failed")\(reset)")

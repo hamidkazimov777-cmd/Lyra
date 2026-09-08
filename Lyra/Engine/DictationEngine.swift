@@ -422,6 +422,34 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
     /// - Parameter transcriptTail: text already committed in this dictation, used by
     ///   live mode so each chunk decodes with the preceding words as context. Empty
     ///   (the default) leaves the prompt byte-identical to the non-live build.
+    /// Terms appended to the post-processing prompt. Bounded so a long
+    /// vocabulary cannot crowd out the rules themselves.
+    static let postProcessingTermBudget = 60
+
+    /// Builds the system prompt for AI post-processing, telling the model which
+    /// names the user actually uses.
+    ///
+    /// Recognition bias alone is not enough: a speech model can still mangle an
+    /// unfamiliar brand ("Aqua Voice" came back as "аквавосон"), and the
+    /// post-processor had no way to repair it because it was never told the term
+    /// exists. Giving it the same vocabulary turns a lost word into a fixable one.
+    static func buildPostProcessingPrompt(base: String, customTerms: [String]) -> String {
+        let terms = customTerms
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .prefix(postProcessingTermBudget)
+        guard !terms.isEmpty else { return base }
+
+        return base + """
+
+
+        Термины и названия, которые использует пользователь (точное написание):
+        \(terms.joined(separator: ", ")).
+
+        Если в тексте встретилось искажённое распознавание одного из них, восстанови правильное написание. Не подставляй эти термины туда, где их не было.
+        """
+    }
+
     static func buildPrompt(base: String, customTerms: [String], transcriptTail: String = "") -> String {
         let baseWords = base.split(separator: " ")
         let cappedBase = baseWords.count > promptWordBudget
@@ -1025,7 +1053,10 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
                 let result = await coordinator.apiService.postProcessDetailed(
                     draftText: finalText,
                     model: AppSettings.shared.aiPostProcessingModel,
-                    systemPrompt: AppSettings.shared.aiPostProcessingPrompt,
+                    systemPrompt: Self.buildPostProcessingPrompt(
+                        base: AppSettings.shared.aiPostProcessingPrompt,
+                        customTerms: AppSettings.shared.customTerms
+                    ),
                     timeoutSeconds: AppSettings.shared.aiPostProcessingTimeoutSeconds
                 )
 
