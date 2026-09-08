@@ -271,3 +271,7 @@
 
 /* Hands-free key changes the main key's behaviour */
 "You have a separate hands-free key, so the main key is hold-to-talk only — tapping it will not leave the microphone running." = "Tienes una tecla de manos libres aparte, así que la tecla principal solo funciona manteniéndola pulsada: un toque no dejará el micrófono grabando.";
+
+/* Live preview on machines without GPU acceleration */
+"This Mac has no GPU acceleration for local Whisper, so a live preview needs a cloud provider. Switch to Cloud / Custom API in Provider settings to use it." = "Este Mac no tiene aceleración por GPU para Whisper local, así que la vista previa en vivo necesita un proveedor en la nube. Cambia a Nube / API personalizada en los ajustes de proveedor.";
+"This Mac has no GPU acceleration, so each finished phrase is transcribed by your cloud provider as you speak. Text appears a phrase at a time, and each phrase costs one extra API request." = "Este Mac no tiene aceleración por GPU, así que cada frase terminada la transcribe tu proveedor en la nube mientras hablas. El texto aparece frase a frase y cada una cuesta una petición adicional a la API.";

@@ -1,10 +1,10 @@
 import SwiftUI
 
 struct AppearanceSection: View {
-    @ObservedObject private var modelManager = ModelManager.shared
-
     @ObservedObject var settings: AppSettings
+    @ObservedObject var engine: DictationEngine
     let colorScheme: ColorScheme
+    @ObservedObject private var modelManager = ModelManager.shared
 
     var body: some View {
         VStack(spacing: 14) {
@@ -28,6 +28,7 @@ struct AppearanceSection: View {
                     get: { settings.livePreviewEnabled },
                     set: { enabled in
                         settings.livePreviewEnabled = enabled
+                        engine.preparePreviewBridgeIfNeeded()
                         guard enabled else { return }
                         // Explicit consent, not a silent background pull: the
                         // preview needs the voice-activity model, and a
@@ -97,17 +98,24 @@ struct AppearanceSection: View {
     }
 
     private var livePreviewCaption: String {
-        guard settings.livePreviewEnabled else {
-            return L10n.tr("The floating island expands to show a running transcript while you talk. Uses the local model for the preview; the text that gets inserted still comes from your configured provider.")
-        }
         let hasVAD = modelManager.isModelDownloaded(ModelManager.ModelInfo.vadSilero)
         let hasWhisper = modelManager.hasUsableModel(for: settings.selectedLanguage)
-        if hasVAD && hasWhisper {
+
+        if WhisperBridge.supportsLocalRealtimePreview {
+            if settings.livePreviewEnabled && !hasWhisper {
+                return L10n.tr("Downloading the models the preview needs — it starts working when they finish.")
+            }
             return L10n.tr("The floating island expands to show a running transcript while you talk. Uses the local model for the preview; the text that gets inserted still comes from your configured provider.")
         }
-        if modelManager.isDownloading(.vadSilero) || !hasWhisper {
+
+        // No GPU backend: local Whisper here is several times slower than
+        // realtime, so the preview has to come from the cloud provider instead.
+        if settings.transcriptionProviderType != .api {
+            return L10n.tr("This Mac has no GPU acceleration for local Whisper, so a live preview needs a cloud provider. Switch to Cloud / Custom API in Provider settings to use it.")
+        }
+        if settings.livePreviewEnabled && !hasVAD {
             return L10n.tr("Downloading the models the preview needs — it starts working when they finish.")
         }
-        return L10n.tr("Requires the voice-activity model and a local Whisper model (Models section).")
+        return L10n.tr("This Mac has no GPU acceleration, so each finished phrase is transcribed by your cloud provider as you speak. Text appears a phrase at a time, and each phrase costs one extra API request.")
     }
 }

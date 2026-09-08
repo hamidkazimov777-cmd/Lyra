@@ -128,7 +128,7 @@ struct SettingsView: View {
                 case .provider:
                     ProviderSection(settings: settings, coordinator: engine.coordinator, modelManager: modelManager, engine: engine, colorScheme: colorScheme)
                 case .appearance:
-                    AppearanceSection(settings: settings, colorScheme: colorScheme)
+                    AppearanceSection(settings: settings, engine: engine, colorScheme: colorScheme)
                 case .hotkeys:
                     HotkeysSection(settings: settings, colorScheme: colorScheme)
                 case .history:

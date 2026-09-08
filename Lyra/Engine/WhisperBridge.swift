@@ -65,6 +65,17 @@ final class WhisperBridge: @unchecked Sendable {
         #endif
     }
 
+    /// Whether this machine can transcribe fast enough to preview speech as it
+    /// is spoken.
+    ///
+    /// Without the Metal backend whisper runs on CPU only. Measured on a 2-core
+    /// i5-7360U (MacBook Pro 2017): small-q5_1 needs 17 s for 3 s of audio and
+    /// medium-q5_0 needs 46 s — 3 to 15 times slower than realtime. A preview
+    /// loop there does not lag, it saturates both cores indefinitely and starves
+    /// the rest of the app, including text insertion. So local preview is
+    /// offered only where the GPU backend is available.
+    static var supportsLocalRealtimePreview: Bool { isAppleSilicon }
+
     init(modelPath: String) throws {
         var contextParams = whisper_context_default_params()
         contextParams.use_gpu = Self.isAppleSilicon

@@ -147,6 +147,31 @@ enum LanguageCatalog {
     /// For multilingual languages on Intel Macs we default to the fastest
     /// quantized model (base) so dictation feels responsive; the user can
     /// upgrade to small/medium in Settings for better accuracy.
+    /// Models suitable for the live preview, lightest first.
+    ///
+    /// The preview re-transcribes the whole utterance roughly once a second, so
+    /// it needs a model that is fast rather than accurate — the text that is
+    /// actually inserted comes from the configured provider. Running the preview
+    /// on a heavy model (medium is ~514 MB) makes it lag far behind the speaker.
+    static func previewCandidates(for language: Language) -> [ModelManager.ModelInfo] {
+        switch language {
+        case .english:
+            return [
+                ModelManager.ModelInfo.baseEnQ5,
+                ModelManager.ModelInfo.baseEn,
+                ModelManager.ModelInfo.smallEnQ5,
+                ModelManager.ModelInfo.smallEn
+            ]
+        case .russian, .spanish, .turkish, .azerbaijani:
+            return [
+                ModelManager.ModelInfo.baseMultiQ5,
+                ModelManager.ModelInfo.baseMulti,
+                ModelManager.ModelInfo.smallMultiQ5,
+                ModelManager.ModelInfo.smallMulti
+            ]
+        }
+    }
+
     static func defaultModel(for language: Language) -> ModelManager.ModelInfo {
         switch language {
         case .english:

@@ -80,6 +80,7 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
         setupHotkeyMonitor()
         hotkeyMonitor?.start()
         loadModelAsync()
+        preparePreviewBridgeIfNeeded()
         LaunchAtLoginHelper.reconcile()
 
         NotificationCenter.default.addObserver(
@@ -499,45 +500,169 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
     // MARK: - Live preview (display only)
 
     private var previewBuffer: PreviewAudioBuffer?
+    private var previewSegmenter: VADSegmenter?
+    private var previewContinuation: AsyncStream<[Float]>.Continuation?
     private var previewFlag: CancellationFlag?
+
+    /// A second, deliberately lightweight Whisper context used only for the
+    /// preview. The preview re-transcribes the whole utterance about once a
+    /// second, which a heavy model (medium is ~514 MB) cannot keep up with — the
+    /// text would lag several seconds behind the speaker. Falls back to the main
+    /// bridge when nothing lighter is on disk.
+    private var previewBridge: WhisperBridge?
+    private var previewBridgeModelPath: String?
+    private var isLoadingPreviewBridge = false
+
+    /// Loads (or reloads) the preview model in the background. Cheap to call
+    /// repeatedly: it does nothing when the right model is already loaded, and
+    /// nothing at all when the preview is switched off.
+    func preparePreviewBridgeIfNeeded() {
+        guard AppSettings.shared.livePreviewEnabled,
+              WhisperBridge.supportsLocalRealtimePreview else {
+            releasePreviewBridge()
+            return
+        }
+        guard !isLoadingPreviewBridge else { return }
+        guard let path = ModelManager.shared.previewModelPath(for: AppSettings.shared.selectedLanguage) else {
+            // Nothing lighter than the active model — reuse the main bridge.
+            releasePreviewBridge()
+            return
+        }
+        guard path != previewBridgeModelPath else { return }
+
+        isLoadingPreviewBridge = true
+        Task.detached(priority: .utility) { [weak self] in
+            let bridge = try? WhisperBridge(modelPath: path)
+            await bridge?.warmup()
+            await MainActor.run { [weak self] in
+                guard let self else { return }
+                self.isLoadingPreviewBridge = false
+                guard let bridge else {
+                    fputs("[DictationEngine] Preview model failed to load: \(path)\n", stderr)
+                    return
+                }
+                self.previewBridge?.shutdownAndFree()
+                self.previewBridge = bridge
+                self.previewBridgeModelPath = path
+                fputs("[DictationEngine] Preview model ready: \((path as NSString).lastPathComponent)\n", stderr)
+            }
+        }
+    }
+
+    func releasePreviewBridge() {
+        guard previewBridge != nil else { return }
+        previewBridge?.shutdownAndFree()
+        previewBridge = nil
+        previewBridgeModelPath = nil
+        fputs("[DictationEngine] Preview model released\n", stderr)
+    }
 
     /// Starts a display-only transcription of the incoming audio.
     ///
-    /// Skipped when the live-dictation session is running, because that already
-    /// streams text and owns `audioCapture.onSamples`.
-    /// Starts a display-only transcription of the incoming audio.
+    /// Picks whichever method this machine can actually sustain:
     ///
-    /// Deliberately does NOT use the VAD segmenter. VAD only emits a chunk once
-    /// it detects a pause, so a normal uninterrupted sentence produced no
-    /// preview at all before the user stopped talking — which is exactly when
-    /// the preview gets torn down. Instead the preview keeps its own copy of the
-    /// audio and re-transcribes it on a timer, so the text grows while you speak.
+    /// - **Local**, on Macs with the Metal backend: keeps its own copy of the
+    ///   audio and re-transcribes it on a timer, so the text grows continuously.
+    ///   Free, and never leaves the device.
+    /// - **Cloud, per phrase**, everywhere else: a local voice-activity model
+    ///   (tiny, cheap on CPU) finds phrase boundaries and each finished phrase
+    ///   is transcribed by the configured provider. Costs one extra request per
+    ///   phrase, and the text appears a phrase at a time rather than word by
+    ///   word — but on a CPU-only Mac it is the only method that can keep up.
     ///
     /// Skipped when live dictation is running: that mode already streams text
     /// and owns `audioCapture.onSamples`.
     private func startPreviewSessionIfNeeded(live: Bool) {
         guard !live, AppSettings.shared.livePreviewEnabled else { return }
-        guard let bridge = whisperBridge else {
-            fputs("[DictationEngine] Live preview needs a local Whisper model — skipping.\n", stderr)
+
+        if WhisperBridge.supportsLocalRealtimePreview, let bridge = previewBridge ?? whisperBridge {
+            startLocalPreview(bridge: bridge)
             return
         }
+        if !startCloudPreview() {
+            fputs("[DictationEngine] No usable live preview on this machine — skipping.\n", stderr)
+        }
+    }
 
+    private func startLocalPreview(bridge: WhisperBridge) {
         let buffer = PreviewAudioBuffer()
         let flag = CancellationFlag()
         previewBuffer = buffer
         previewFlag = flag
         audioCapture.onSamples = { samples in buffer.append(samples) }
-        fputs("[DictationEngine] Live preview started\n", stderr)
-        runPreviewLoop(buffer: buffer, bridge: bridge, flag: flag)
+        fputs("[DictationEngine] Live preview started (local)\n", stderr)
+        runLocalPreviewLoop(buffer: buffer, bridge: bridge, flag: flag)
+    }
+
+    /// - Returns: false when the machine cannot do a cloud preview either
+    ///   (offline provider, or the voice-activity model is not downloaded).
+    private func startCloudPreview() -> Bool {
+        guard AppSettings.shared.transcriptionProviderType == .api else { return false }
+        guard let vadPath = ModelManager.shared.vadModelPath() else { return false }
+        do {
+            let segmenter = try VADSegmenter(vadModelPath: vadPath)
+            let flag = CancellationFlag()
+            let (stream, continuation) = AsyncStream.makeStream(of: [Float].self)
+
+            previewSegmenter = segmenter
+            previewContinuation = continuation
+            previewFlag = flag
+
+            segmenter.onChunk = { chunk in continuation.yield(chunk) }
+            audioCapture.onSamples = { samples in segmenter.append(samples) }
+            segmenter.start()
+            fputs("[DictationEngine] Live preview started (cloud, per phrase)\n", stderr)
+            runCloudPreviewConsumer(stream: stream, flag: flag)
+            return true
+        } catch {
+            fputs("[DictationEngine] Cloud preview init failed: \(error)\n", stderr)
+            return false
+        }
+    }
+
+    private func runCloudPreviewConsumer(stream: AsyncStream<[Float]>, flag: CancellationFlag) {
+        let service = coordinator.apiService
+        Task.detached(priority: .utility) { [weak self] in
+            var accumulated = ""
+            for await chunk in stream {
+                guard !flag.isCancelled else { continue }
+                // Under ~0.6 s there is not enough speech to be worth a request.
+                guard chunk.count > 9600 else { continue }
+
+                let language = AppSettings.shared.selectedLanguage
+                let prompt = Self.buildPrompt(
+                    base: AppSettings.shared.vocabularyPrompt,
+                    customTerms: AppSettings.shared.customTerms,
+                    transcriptTail: accumulated
+                )
+                guard let text = try? await service.transcribe(
+                    samples: chunk,
+                    language: language,
+                    prompt: prompt,
+                    cancelFlag: flag
+                ) else { continue }
+
+                guard !flag.isCancelled else { break }
+                let piece = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !piece.isEmpty else { continue }
+                accumulated = accumulated.isEmpty ? piece : accumulated + " " + piece
+                let snapshot = accumulated
+                await MainActor.run { [weak self] in self?.previewTranscript = snapshot }
+            }
+        }
     }
 
     /// Cancels the preview. In-flight and queued work sees the flag and aborts,
     /// so the real transcription is never stuck behind preview work on
     /// WhisperBridge's shared serial queue.
     private func stopPreviewSession() {
-        guard previewBuffer != nil else { return }
+        guard previewBuffer != nil || previewSegmenter != nil else { return }
         previewFlag?.cancel()
+        previewContinuation?.finish()
+        previewSegmenter?.onChunk = nil
         previewBuffer = nil
+        previewSegmenter = nil
+        previewContinuation = nil
         previewFlag = nil
         if !isLiveSession { audioCapture.onSamples = nil }
     }
@@ -551,7 +676,7 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
     /// stops being worth it, and the island cannot show that much text anyway.
     private static let previewMaxSeconds: Double = 45
 
-    private func runPreviewLoop(
+    private func runLocalPreviewLoop(
         buffer: PreviewAudioBuffer,
         bridge: WhisperBridge,
         flag: CancellationFlag

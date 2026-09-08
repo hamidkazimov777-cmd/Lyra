@@ -184,6 +184,15 @@ final class ModelManager: ObservableObject, @unchecked Sendable {
         activeModelInfo().name
     }
 
+    /// Path to the lightest already-downloaded model suitable for previewing the
+    /// given language, or nil when nothing lighter is on disk. Never downloads.
+    func previewModelPath(for language: Language) -> String? {
+        for model in LanguageCatalog.previewCandidates(for: language) where isModelDownloaded(model) {
+            return modelsDirectory.appendingPathComponent(model.fileName).path
+        }
+        return nil
+    }
+
     func vadModelPath() -> String? {
         let path = modelsDirectory.appendingPathComponent(ModelInfo.vadSilero.fileName).path
         return fileManager.fileExists(atPath: path) ? path : nil

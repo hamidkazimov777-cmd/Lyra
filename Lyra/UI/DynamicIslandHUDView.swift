@@ -198,13 +198,16 @@ struct DynamicIslandHUDView: View {
             if !transcriptInProgress.isEmpty {
                 // Grows with the text instead of truncating it: the window
                 // resizes itself to fit (see RecordingHUDWindow.resizeToFit).
+                // A fixed width, not maxWidth: inside an HStack a flexible frame
+                // collapses to the text's minimum intrinsic width, which wraps
+                // in the middle of words ("запис" / "ь" on separate lines).
                 Text(transcriptInProgress)
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(.primary)
                     .lineLimit(3)
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: 300, alignment: .leading)
+                    .frame(width: 320, alignment: .leading)
                     .animation(.easeOut(duration: 0.18), value: transcriptInProgress)
                     .transition(.opacity)
             } else if isSmartEdit {
