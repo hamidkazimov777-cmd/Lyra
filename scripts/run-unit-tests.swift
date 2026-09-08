@@ -267,6 +267,32 @@ struct TestRunner {
                 "An explicit AI key takes precedence"
             )
 
+            // Regression: key reuse must default to ON. Defaulting it off sent
+            // post-processing requests to the user's own provider with no
+            // Authorization header at all, so every existing OpenRouter setup
+            // silently fell back to the raw Whisper draft. The host check below
+            // is what provides the safety, not the opt-in.
+            UserDefaults.standard.removeObject(forKey: "llmUsesSTTCredentials")
+            assertTest(
+                settings.llmUsesSTTCredentials,
+                "Reusing the speech key defaults to ON so existing setups keep working"
+            )
+            settings.llmAPIKey = ""
+            settings.apiKey = "stt-secret"
+            settings.apiBaseURL = "https://mock.invalid/v1"
+            settings.llmBaseURL = "https://mock.invalid/v1"
+            assertTest(
+                settings.effectiveLLMAPIKey == "stt-secret",
+                "With defaults and a matching host, post-processing is authenticated"
+            )
+            settings.apiBaseURL = "https://speech.invalid/v1"
+            assertTest(
+                settings.effectiveLLMAPIKey.isEmpty,
+                "The default still withholds the key when the AI endpoint is elsewhere"
+            )
+            settings.apiBaseURL = "https://mock.invalid/v1"
+            settings.llmAPIKey = "test-llm-key"
+
             let service = OpenAISpeechService(protocolClasses: [MockURLProtocol.self])
 
             // --- Happy path ---
@@ -301,8 +327,12 @@ struct TestRunner {
             )
             settings.llmBaseURL = "https://mock.invalid/v1"
 
-            // --- No key: no Authorization header (local gateways reject empty bearers) ---
+            // --- No credentials at all: no Authorization header.
+            // This is the local-gateway case (Ollama / vLLM), where an empty
+            // bearer makes some servers reject the request outright. Both key
+            // sources have to be off, since reuse is on by default.
             settings.llmAPIKey = ""
+            settings.llmUsesSTTCredentials = false
             MockURLProtocol.stub(status: 200, body: """
             {"choices":[{"message":{"content":"ok"}}]}
             """)
@@ -311,6 +341,7 @@ struct TestRunner {
                 MockURLProtocol.lastRequestHeaders["Authorization"] == nil,
                 "No Authorization header is sent when no key is configured"
             )
+            settings.llmUsesSTTCredentials = true
             settings.llmAPIKey = "test-llm-key"
 
             // --- HTTP error codes all fall back to the raw draft ---

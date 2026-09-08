@@ -268,3 +268,6 @@
 "Requires the voice-activity model and a local Whisper model (Models section)." = "Requires the voice-activity model and a local Whisper model (Models section).";
 "Show my words as I speak" = "Show my words as I speak";
 "The floating island expands to show a running transcript while you talk. Uses the local model for the preview; the text that gets inserted still comes from your configured provider." = "The floating island expands to show a running transcript while you talk. Uses the local model for the preview; the text that gets inserted still comes from your configured provider.";
+
+/* Hands-free key changes the main key's behaviour */
+"You have a separate hands-free key, so the main key is hold-to-talk only — tapping it will not leave the microphone running." = "You have a separate hands-free key, so the main key is hold-to-talk only — tapping it will not leave the microphone running.";

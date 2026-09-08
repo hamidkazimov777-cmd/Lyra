@@ -366,11 +366,17 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
             return
         }
 
+        // Once a dedicated hands-free key exists, the primary key stops latching
+        // hands-free on a quick tap. Otherwise every stray tap of the modifier —
+        // and repeated taps in particular — silently leaves the microphone
+        // recording, which is surprising when the gesture now has its own key.
+        let tapLatchesHandsFree = !AppSettings.shared.handsFreeHotkey.isAssigned
+
         // Hold-or-tap mode, which is both behaviours on one key:
         //   held >= threshold -> push-to-talk, release stops and transcribes
         //   tapped < threshold -> keep recording hands-free
         // The threshold is the user's `handsFreeTapThreshold` setting.
-        if duration >= AppSettings.shared.handsFreeTapThreshold {
+        if duration >= AppSettings.shared.handsFreeTapThreshold || !tapLatchesHandsFree {
             fputs("[DictationEngine] Key held \(String(format: "%.2f", duration))s - push-to-talk stop.\n", stderr)
             isRecordingStartedByHotkey = false
             isHandsFreeActive = false
@@ -492,87 +498,97 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
 
     // MARK: - Live preview (display only)
 
-    private var previewSegmenter: VADSegmenter?
-    private var previewContinuation: AsyncStream<[Float]>.Continuation?
+    private var previewBuffer: PreviewAudioBuffer?
     private var previewFlag: CancellationFlag?
 
     /// Starts a display-only transcription of the incoming audio.
     ///
     /// Skipped when the live-dictation session is running, because that already
     /// streams text and owns `audioCapture.onSamples`.
+    /// Starts a display-only transcription of the incoming audio.
+    ///
+    /// Deliberately does NOT use the VAD segmenter. VAD only emits a chunk once
+    /// it detects a pause, so a normal uninterrupted sentence produced no
+    /// preview at all before the user stopped talking — which is exactly when
+    /// the preview gets torn down. Instead the preview keeps its own copy of the
+    /// audio and re-transcribes it on a timer, so the text grows while you speak.
+    ///
+    /// Skipped when live dictation is running: that mode already streams text
+    /// and owns `audioCapture.onSamples`.
     private func startPreviewSessionIfNeeded(live: Bool) {
         guard !live, AppSettings.shared.livePreviewEnabled else { return }
-        guard let vadPath = ModelManager.shared.vadModelPath(),
-              let bridge = whisperBridge else {
-            fputs("[DictationEngine] Live preview unavailable (missing VAD or Whisper model)\n", stderr)
+        guard let bridge = whisperBridge else {
+            fputs("[DictationEngine] Live preview needs a local Whisper model — skipping.\n", stderr)
             return
         }
-        do {
-            let segmenter = try VADSegmenter(vadModelPath: vadPath)
-            let flag = CancellationFlag()
-            let (stream, continuation) = AsyncStream.makeStream(of: [Float].self)
 
-            previewSegmenter = segmenter
-            previewContinuation = continuation
-            previewFlag = flag
-
-            segmenter.onChunk = { chunk in continuation.yield(chunk) }
-            audioCapture.onSamples = { samples in segmenter.append(samples) }
-            segmenter.start()
-            runPreviewConsumer(stream: stream, bridge: bridge, flag: flag)
-        } catch {
-            fputs("[DictationEngine] Live preview init failed: \(error)\n", stderr)
-        }
+        let buffer = PreviewAudioBuffer()
+        let flag = CancellationFlag()
+        previewBuffer = buffer
+        previewFlag = flag
+        audioCapture.onSamples = { samples in buffer.append(samples) }
+        fputs("[DictationEngine] Live preview started\n", stderr)
+        runPreviewLoop(buffer: buffer, bridge: bridge, flag: flag)
     }
 
-    /// Cancels the preview. Queued chunks see the flag and abort, so the final
-    /// transcription is not stuck behind preview work on the shared Whisper queue.
+    /// Cancels the preview. In-flight and queued work sees the flag and aborts,
+    /// so the real transcription is never stuck behind preview work on
+    /// WhisperBridge's shared serial queue.
     private func stopPreviewSession() {
-        guard previewSegmenter != nil else { return }
+        guard previewBuffer != nil else { return }
         previewFlag?.cancel()
-        previewContinuation?.finish()
-        previewSegmenter?.onChunk = nil
-        previewSegmenter = nil
-        previewContinuation = nil
+        previewBuffer = nil
         previewFlag = nil
         if !isLiveSession { audioCapture.onSamples = nil }
     }
 
-    private func runPreviewConsumer(
-        stream: AsyncStream<[Float]>,
+    /// Seconds between preview refreshes. Each pass re-transcribes everything
+    /// captured so far, so the interval trades responsiveness against how much
+    /// of the Whisper queue the preview occupies.
+    private static let previewInterval: TimeInterval = 1.2
+
+    /// Longest audio the preview will re-transcribe. Past this the cost per pass
+    /// stops being worth it, and the island cannot show that much text anyway.
+    private static let previewMaxSeconds: Double = 45
+
+    private func runPreviewLoop(
+        buffer: PreviewAudioBuffer,
         bridge: WhisperBridge,
         flag: CancellationFlag
     ) {
-        // Utility priority: the preview must never compete with the real
-        // transcription for the shared Whisper queue.
+        // Utility priority: the preview must never outrank the real transcription
+        // on the shared Whisper queue.
         Task.detached(priority: .utility) { [weak self] in
-            var accumulated = ""
-            for await chunk in stream {
-                guard !flag.isCancelled else { continue }
+            while !flag.isCancelled {
+                try? await Task.sleep(nanoseconds: UInt64(Self.previewInterval * 1_000_000_000))
+                guard !flag.isCancelled else { break }
+
+                let samples = buffer.snapshot(maxSamples: Int(16000 * Self.previewMaxSeconds))
+                // Under ~0.4 s there is nothing intelligible to show yet.
+                guard samples.count > 6400 else { continue }
+
                 let language = AppSettings.shared.selectedLanguage
                 let prompt = Self.buildPrompt(
                     base: AppSettings.shared.vocabularyPrompt,
-                    customTerms: AppSettings.shared.customTerms,
-                    transcriptTail: accumulated
+                    customTerms: AppSettings.shared.customTerms
                 )
-                let piece = TranscriptCollector()
+                let collected = TranscriptCollector()
                 _ = try? await bridge.transcribe(
-                    audioBuffer: chunk,
+                    audioBuffer: samples,
                     language: language,
                     prompt: prompt,
                     cancelFlag: flag,
-                    vad: false
+                    vad: true
                 ) { segment in
-                    _ = piece.joinAndAppend(segment)
+                    _ = collected.joinAndAppend(segment)
                 }
-                guard !flag.isCancelled else { continue }
-                let corrected = TextCorrector.shared
-                    .correct(piece.text, language: language)
+                guard !flag.isCancelled else { break }
+
+                let text = TextCorrector.shared
+                    .correct(collected.text, language: language)
                     .trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !corrected.isEmpty else { continue }
-                accumulated = accumulated.isEmpty ? corrected : accumulated + " " + corrected
-                let snapshot = accumulated
-                await MainActor.run { [weak self] in self?.previewTranscript = snapshot }
+                guard !text.isEmpty else { continue }
+                await MainActor.run { [weak self] in self?.previewTranscript = text }
             }
         }
     }

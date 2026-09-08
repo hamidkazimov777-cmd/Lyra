@@ -268,3 +268,6 @@
 "Requires the voice-activity model and a local Whisper model (Models section)." = "Требуются модель детекции речи и локальная модель Whisper (раздел «Модели»).";
 "Show my words as I speak" = "Показывать мои слова, пока я говорю";
 "The floating island expands to show a running transcript while you talk. Uses the local model for the preview; the text that gets inserted still comes from your configured provider." = "Плавающий остров расширяется и показывает текст по ходу речи. Для превью используется локальная модель; вставляется по-прежнему текст от вашего провайдера.";
+
+/* Hands-free key changes the main key's behaviour */
+"You have a separate hands-free key, so the main key is hold-to-talk only — tapping it will not leave the microphone running." = "У вас назначена отдельная клавиша свободных рук, поэтому основная работает только на удержание — короткое нажатие не оставит микрофон включённым.";

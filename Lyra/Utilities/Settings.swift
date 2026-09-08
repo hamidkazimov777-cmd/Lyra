@@ -228,11 +228,16 @@ final class AppSettings: ObservableObject, @unchecked Sendable {
 
     static let defaultLLMBaseURL = "https://openrouter.ai/api/v1"
 
-    /// When true, the LLM calls reuse the STT provider's key. Only honoured when
-    /// both endpoints resolve to the same host — otherwise the key is withheld,
-    /// so a third-party key can never be shipped to an unrelated provider.
+    /// When true, the LLM calls reuse the STT provider's key.
+    ///
+    /// Defaults to ON, because the host check in `effectiveLLMAPIKey` is what
+    /// actually prevents a key leaking to a third party: when both endpoints are
+    /// the same service, sending the key there is precisely what the user
+    /// configured. Defaulting this off silently broke post-processing for every
+    /// existing OpenRouter user — the request went out with no Authorization
+    /// header at all and fell back to the raw draft.
     var llmUsesSTTCredentials: Bool {
-        get { defaults.object(forKey: Key.llmUsesSTTCredentials.rawValue) as? Bool ?? false }
+        get { defaults.object(forKey: Key.llmUsesSTTCredentials.rawValue) as? Bool ?? true }
         set { defaults.set(newValue, forKey: Key.llmUsesSTTCredentials.rawValue); objectWillChange.send() }
     }
 

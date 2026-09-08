@@ -46,23 +46,40 @@ struct HotkeysSection: View {
                     }
                     .padding(.top, 4)
 
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack {
-                            Text(L10n.tr("Hold / tap threshold"))
-                                .font(.system(size: 12))
-                            Spacer()
-                            Text(String(format: "%.2fs", settings.handsFreeTapThreshold))
+                    // With a dedicated hands-free key assigned, a quick tap of the
+                    // main key no longer latches anything, so the threshold has
+                    // nothing left to control — say so instead of showing a
+                    // slider that does nothing.
+                    if settings.handsFreeHotkey.isAssigned {
+                        HStack(alignment: .top, spacing: 6) {
+                            Image(systemName: "info.circle")
                                 .font(.system(size: 11))
                                 .foregroundStyle(.secondary)
-                                .monospacedDigit()
+                            Text(L10n.tr("You have a separate hands-free key, so the main key is hold-to-talk only — tapping it will not leave the microphone running."))
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
-                        Slider(value: $settings.handsFreeTapThreshold, in: 0.15...1.0, step: 0.05)
-                        Text(L10n.tr("A press shorter than this counts as a tap and latches hands-free recording; anything longer is treated as hold-to-talk."))
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 6)
+                    } else {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text(L10n.tr("Hold / tap threshold"))
+                                    .font(.system(size: 12))
+                                Spacer()
+                                Text(String(format: "%.2fs", settings.handsFreeTapThreshold))
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(.secondary)
+                                    .monospacedDigit()
+                            }
+                            Slider(value: $settings.handsFreeTapThreshold, in: 0.15...1.0, step: 0.05)
+                            Text(L10n.tr("A press shorter than this counts as a tap and latches hands-free recording; anything longer is treated as hold-to-talk."))
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .padding(.top, 6)
                     }
-                    .padding(.top, 6)
                 } else {
                     HStack(alignment: .top, spacing: 10) {
                         Image(systemName: "waveform.circle.fill")
