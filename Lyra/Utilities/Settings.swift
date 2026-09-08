@@ -62,9 +62,8 @@ final class AppSettings: ObservableObject, @unchecked Sendable {
         case aiPostProcessingAvailableModels
         case aiPostProcessingPrompt
         case aiPostProcessingTimeoutSeconds
-        // Smart Voice Editing & Live Streaming Keys
+        // Smart Voice Editing Keys
         case smartVoiceEditingEnabled
-        case liveStreamingHUDEnabled
     }
 
     // MARK: - Properties
@@ -257,16 +256,11 @@ final class AppSettings: ObservableObject, @unchecked Sendable {
         set { defaults.set(newValue, forKey: Key.aiPostProcessingTimeoutSeconds.rawValue); objectWillChange.send() }
     }
 
-    // MARK: - Smart Voice Editing & Live Streaming Properties
+    // MARK: - Smart Voice Editing Properties
 
     var smartVoiceEditingEnabled: Bool {
         get { defaults.object(forKey: Key.smartVoiceEditingEnabled.rawValue) as? Bool ?? true }
         set { defaults.set(newValue, forKey: Key.smartVoiceEditingEnabled.rawValue); objectWillChange.send() }
-    }
-
-    var liveStreamingHUDEnabled: Bool {
-        get { defaults.object(forKey: Key.liveStreamingHUDEnabled.rawValue) as? Bool ?? false }
-        set { defaults.set(newValue, forKey: Key.liveStreamingHUDEnabled.rawValue); objectWillChange.send() }
     }
 
     // MARK: - Floating Widget Properties

@@ -40,12 +40,6 @@ struct SpeechSection: View {
                     .font(.system(size: 13))
                 Text("When text is highlighted in any app, dictation acts as a voice command (rewrite, translate, edit) applied directly to your selection.")
                     .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                Toggle("Live Streaming in Dynamic Island", isOn: $settings.liveStreamingHUDEnabled)
-                    .font(.system(size: 13))
-                Text("Shows on-device real-time words inside the Dynamic Island HUD while you are speaking.")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
             }
 
             SettingsCard(colorScheme: colorScheme) {

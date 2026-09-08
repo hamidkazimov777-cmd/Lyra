@@ -31,8 +31,6 @@
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Lyra needs microphone access to capture your voice for speech-to-text transcription.</string>
-	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>Lyra uses on-device speech recognition to display live transcript preview in the Dynamic Island while speaking.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 </dict>

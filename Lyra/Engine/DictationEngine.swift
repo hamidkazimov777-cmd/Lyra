@@ -44,7 +44,6 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
     private let audioCapture = AudioCapture()
     private let textInjector = TextInjector()
     private let soundFeedback = SoundFeedback()
-    private let liveSpeechRecognizer = LiveSpeechRecognizer()
     private var hotkeyMonitor: HotkeyMonitor?
     private var capturedSelectedText: String?
 
@@ -173,8 +172,6 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
         isHandsFreeActive = false
         isSmartEditActive = false
         capturedSelectedText = nil
-        liveSpeechRecognizer.stop()
-        audioCapture.onPCMBuffer = nil
         liveTranscription = ""
         drainCancelFlag = nil
         inFlightCancelFlag = nil
@@ -254,8 +251,6 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
     /// Ask active transcription to abort immediately.
     private func cancelTranscription() {
         fputs("[DictationEngine] Cancel requested during \(state.rawValue).\n", stderr)
-        liveSpeechRecognizer.stop()
-        audioCapture.onPCMBuffer = nil
         isSmartEditActive = false
         capturedSelectedText = nil
         inFlightCancelFlag?.cancel()
@@ -383,26 +378,10 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
         let live = startLiveSessionIfEnabled()
         fputs("[DictationEngine] Recording (live: \(live), smartEdit: \(isSmartEditActive))\n", stderr)
 
-        // Real-time speech streaming in Dynamic Island (zero latency on-device)
-        if !live && AppSettings.shared.liveStreamingHUDEnabled {
-            let streamQueue = DispatchQueue(label: "com.lyra.livestreaming", qos: .utility)
-            liveSpeechRecognizer.start(language: AppSettings.shared.selectedLanguage) { [weak self] partialText in
-                guard let self = self, self.state == .recording else { return }
-                self.liveTranscription = partialText
-            }
-            audioCapture.onPCMBuffer = { [weak self] buffer in
-                streamQueue.async {
-                    self?.liveSpeechRecognizer.append(buffer: buffer)
-                }
-            }
-        }
-
         do {
             try audioCapture.startRecording()
         } catch {
             fputs("[DictationEngine] Failed to start recording: \(error)\n", stderr)
-            liveSpeechRecognizer.stop()
-            audioCapture.onPCMBuffer = nil
             isSmartEditActive = false
             capturedSelectedText = nil
             teardownLiveSession()
@@ -418,16 +397,12 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
     private func stopRecordingAndTranscribe(trimTrailingSeconds: TimeInterval = 0) {
         guard state == .recording else { return }
         if isLiveSession {
-            liveSpeechRecognizer.stop()
-            audioCapture.onPCMBuffer = nil
             isSmartEditActive = false
             capturedSelectedText = nil
             stopLiveSession(trimTrailingSeconds: trimTrailingSeconds)
             return
         }
 
-        liveSpeechRecognizer.stop()
-        audioCapture.onPCMBuffer = nil
         let selectedTextToTransform = self.capturedSelectedText
         self.capturedSelectedText = nil
 

@@ -21,9 +21,6 @@ final class AudioCapture {
     /// live session ends.
     var onSamples: (([Float]) -> Void)?
 
-    /// Optional hook for live speech recognition consuming the converted 16 kHz mono buffer.
-    var onPCMBuffer: ((AVAudioPCMBuffer) -> Void)?
-
     /// Analyzer that drives the recording HUD visualization. Updated on the tap
     /// thread; the analyzer handles its own thread safety.
     var audioLevelAnalyzer: AudioLevelAnalyzer?
@@ -150,7 +147,6 @@ final class AudioCapture {
                 let crossedCap = Self.crossesDurationCap(previousCount: previousCount, newCount: self.audioBuffer.count)
                 self.bufferLock.unlock()
                 self.onSamples?(samples)
-                self.onPCMBuffer?(converted)
                 self.audioLevelAnalyzer?.process(samples)
                 #if DEBUG
                 fputs("+", stderr) // successful conversion (DEBUG only)

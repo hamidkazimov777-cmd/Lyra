@@ -20,7 +20,6 @@ SWIFT_FILES := \
 	Lyra/Engine/WhisperBridge.swift \
 	Lyra/Engine/TranscriptionCoordinator.swift \
 	Lyra/Engine/SelectedTextReader.swift \
-	Lyra/Engine/LiveSpeechRecognizer.swift \
 	Lyra/Engine/AudioCapture.swift \
 	Lyra/Engine/AudioLevelAnalyzer.swift \
 	Lyra/Engine/TextInjector.swift \
@@ -51,7 +50,7 @@ SWIFT_FILES := \
 	Lyra/App/LyraApp.swift
 
 LIBS := -lwhisper -lggml -lggml-base -lggml-cpu -lggml-metal -lggml-blas -lc++
-FRAMEWORKS := -framework Accelerate -framework Metal -framework MetalKit -framework AVFoundation -framework CoreGraphics -framework AppKit -framework Foundation -framework ServiceManagement -framework CoreAudio -framework Speech
+FRAMEWORKS := -framework Accelerate -framework Metal -framework MetalKit -framework AVFoundation -framework CoreGraphics -framework AppKit -framework Foundation -framework ServiceManagement -framework CoreAudio
 
 .PHONY: all clean whisper model app run dmg
 
