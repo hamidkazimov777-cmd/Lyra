@@ -28,14 +28,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var cancellables = Set<AnyCancellable>()
     
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Move any API key written by a pre-Keychain build out of the plaintext
+        // preferences plist before anything reads it.
+        AppSettings.shared.migrateSecretsToKeychainIfNeeded()
+
         // Create the popover
         popover = NSPopover()
         popover.contentSize = NSSize(width: 300, height: 400)
         popover.behavior = .transient
-        // Need to pass openSettings action to the view? Wait, MenuBarView probably has its own buttons. 
-        // We will need to update MenuBarView to call our openSettings method.
-        // For now, let's inject it via environment or Notification.
-        // Let's use NotificationCenter to open windows.
+        // MenuBarView drives window opening through NotificationCenter.
         popover.contentViewController = NSHostingController(rootView: MenuBarView(engine: engine))
         
         // Create the status item

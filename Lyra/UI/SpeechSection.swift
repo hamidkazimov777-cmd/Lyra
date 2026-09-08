@@ -102,7 +102,7 @@ struct SpeechSection: View {
                         // 2. OpenRouter Model Selection & Fetch
                         VStack(alignment: .leading, spacing: 6) {
                             HStack {
-                                Text("Model Identifier")
+                                Text(L10n.tr("Model Identifier"))
                                     .font(.system(size: 11, weight: .medium))
                                     .foregroundStyle(.secondary)
                                 Spacer()
@@ -150,7 +150,7 @@ struct SpeechSection: View {
                                     .font(.system(size: 10))
                                     .foregroundStyle(.orange)
                             } else if !settings.aiPostProcessingAvailableModels.isEmpty {
-                                Text("\(settings.aiPostProcessingAvailableModels.count) models available on OpenRouter")
+                                Text("\(settings.aiPostProcessingAvailableModels.count) " + L10n.tr("models available on this API"))
                                     .font(.system(size: 10))
                                     .foregroundStyle(.secondary)
                             }
@@ -158,15 +158,15 @@ struct SpeechSection: View {
 
                         // 3. Timeout Configuration
                         HStack {
-                            Text("Timeout Limit")
+                            Text(L10n.tr("Timeout Limit"))
                                 .font(.system(size: 11, weight: .medium))
                                 .foregroundStyle(.secondary)
                             Spacer()
                             Picker("Timeout", selection: $settings.aiPostProcessingTimeoutSeconds) {
-                                Text("3.0s (Fast)").tag(3.0)
-                                Text("5.0s (Recommended)").tag(5.0)
-                                Text("8.0s (Relaxed)").tag(8.0)
-                                Text("12.0s (Slow / Thinking)").tag(12.0)
+                                Text("3.0s (" + L10n.tr("Fast") + ")").tag(3.0)
+                                Text("5.0s (" + L10n.tr("Recommended") + ")").tag(5.0)
+                                Text("8.0s (" + L10n.tr("Relaxed") + ")").tag(8.0)
+                                Text("12.0s (" + L10n.tr("Slow / Thinking") + ")").tag(12.0)
                             }
                             .pickerStyle(.menu)
                             .font(.system(size: 11))
@@ -211,7 +211,7 @@ struct SpeechSection: View {
                                             .foregroundStyle(res.success ? Color.primary : Color.red)
                                     }
                                     if let sample = res.sampleOutput {
-                                        Text("Result: \"\(sample)\"")
+                                        Text(L10n.tr("Result:") + " \"\(sample)\"")
                                             .font(.system(size: 10, design: .monospaced))
                                             .foregroundStyle(.secondary)
                                             .padding(6)
@@ -226,7 +226,7 @@ struct SpeechSection: View {
                             }
                         }
 
-                        Text("Fixes punctuation, letter casing, and speech errors while preserving meaning and language. If OpenRouter takes longer than timeout or fails, Lyra automatically uses the Whisper draft.")
+                        Text(L10n.tr("Fixes punctuation, letter casing, and speech errors while preserving meaning and language. If the AI provider takes longer than the timeout or fails, Lyra automatically uses the Whisper draft."))
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
@@ -253,6 +253,22 @@ struct SpeechSection: View {
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+
+                // Live mode runs entirely through the local VAD + whisper.cpp
+                // path, so every cloud feature is bypassed. Say so, instead of
+                // letting the AI toggles look active while doing nothing.
+                if settings.liveDictationEnabled && cloudFeaturesDisabledByLiveMode {
+                    HStack(alignment: .top, spacing: 6) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
+                            .font(.system(size: 12))
+                        Text(L10n.tr("Live dictation transcribes locally: the cloud provider, AI post-processing and Smart Voice Editing are all bypassed while it is on."))
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(.top, 4)
+                }
             }
         }
         .onAppear {
@@ -268,7 +284,7 @@ struct SpeechSection: View {
 
         Task {
             let res = await TranscriptionCoordinator.shared.apiService.fetchPostProcessingModels(
-                apiKey: settings.apiKey
+                apiKey: settings.effectiveLLMAPIKey
             )
             await MainActor.run {
                 self.isFetchingModels = false
@@ -315,19 +331,26 @@ struct SpeechSection: View {
         )
     }
 
+    /// True when live mode is actually shadowing a feature the user turned on.
+    private var cloudFeaturesDisabledByLiveMode: Bool {
+        settings.transcriptionProviderType == .api
+            || settings.aiPostProcessingEnabled
+            || settings.smartVoiceEditingEnabled
+    }
+
     private var liveDictationCaption: String {
         guard settings.liveDictationEnabled else {
-            return "Types each phrase when you pause, instead of everything at the end. Works best with small or base models."
+            return L10n.tr("Types each phrase when you pause, instead of everything at the end. Works best with small or base models.")
         }
         if modelManager.isModelDownloaded(ModelManager.ModelInfo.vadSilero) {
-            return "Types each phrase when you pause. Works best with small or base models."
+            return L10n.tr("Types each phrase when you pause. Works best with small or base models.")
         }
         if modelManager.isDownloading(.vadSilero) {
-            return "Downloading the voice-activity model — live dictation starts working when it finishes."
+            return L10n.tr("Downloading the voice-activity model — live dictation starts working when it finishes.")
         }
         if modelManager.downloadError != nil {
-            return "A model download failed — retry from the Models section. Live dictation stays off until the voice-activity model is downloaded."
+            return L10n.tr("A model download failed — retry from the Models section. Live dictation stays off until the voice-activity model is downloaded.")
         }
-        return "Requires the voice-activity model (Models section). Live dictation is off until it's downloaded."
+        return L10n.tr("Requires the voice-activity model (Models section). Live dictation is off until it's downloaded.")
     }
 }

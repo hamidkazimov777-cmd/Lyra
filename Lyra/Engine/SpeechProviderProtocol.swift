@@ -16,11 +16,15 @@ enum TranscriptionProviderType: String, CaseIterable, Identifiable {
 }
 
 /// Supported popular preset providers to automatically populate Base URL and default models.
+///
+/// Only providers that actually expose an OpenAI-compatible `/audio/transcriptions`
+/// endpoint belong here. Text-only providers (DeepSeek, for example) live in
+/// `AppSettings.popularPostProcessingPresets` instead — offering them for speech
+/// recognition guarantees a 404.
 enum APIPresetProvider: String, CaseIterable, Identifiable {
     case openAI = "OpenAI"
     case groq = "Groq"
     case openRouter = "OpenRouter"
-    case deepSeek = "DeepSeek"
     case gemini = "Google Gemini"
     case localGateway = "Local Gateway (Ollama / vLLM)"
     case custom = "Custom"
@@ -35,8 +39,6 @@ enum APIPresetProvider: String, CaseIterable, Identifiable {
             return "https://api.groq.com/openai/v1"
         case .openRouter:
             return "https://openrouter.ai/api/v1"
-        case .deepSeek:
-            return "https://api.deepseek.com/v1"
         case .gemini:
             return "https://generativelanguage.googleapis.com/v1beta/openai"
         case .localGateway:
@@ -54,8 +56,6 @@ enum APIPresetProvider: String, CaseIterable, Identifiable {
             return "whisper-large-v3"
         case .openRouter:
             return "openai/whisper-large-v3"
-        case .deepSeek:
-            return "deepseek-chat"
         case .gemini:
             return "gemini-1.5-flash"
         case .localGateway:

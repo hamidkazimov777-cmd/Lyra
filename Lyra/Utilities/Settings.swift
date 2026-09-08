@@ -52,6 +52,9 @@ final class AppSettings: ObservableObject, @unchecked Sendable {
         case apiKey
         case apiModelName
         case enableLocalFallback
+        // LLM (post-processing / Smart Edit) provider keys — independent of STT
+        case llmBaseURL
+        case llmUsesSTTCredentials
         // Dynamic Island / Floating Widget Keys
         case isFloatingWidgetAlwaysVisible
         case floatingWidgetPositionX
@@ -66,6 +69,12 @@ final class AppSettings: ObservableObject, @unchecked Sendable {
         case smartVoiceEditingEnabled
         // Interface Localization Key
         case interfaceLanguage
+        // Privacy
+        case historyLoggingEnabled
+        // Audio
+        case fastMicrophoneStartEnabled
+        // One-shot migration marker: secrets moved from UserDefaults to Keychain
+        case didMigrateSecretsToKeychain
     }
 
     // MARK: - Properties
@@ -109,8 +118,19 @@ final class AppSettings: ObservableObject, @unchecked Sendable {
 
     var apiPreset: APIPresetProvider {
         get {
-            guard let raw = defaults.string(forKey: Key.apiPreset.rawValue),
-                  let preset = APIPresetProvider(rawValue: raw) else {
+            guard let raw = defaults.string(forKey: Key.apiPreset.rawValue) else {
+                return .openAI
+            }
+            // "DeepSeek" was offered as a speech preset in <=1.2.2 but has no
+            // /audio/transcriptions endpoint, so it could only ever 404. Migrate
+            // those users (and their dead base URL) onto a working default.
+            if raw == "DeepSeek" {
+                defaults.set(APIPresetProvider.openAI.rawValue, forKey: Key.apiPreset.rawValue)
+                defaults.set(APIPresetProvider.openAI.defaultBaseURL, forKey: Key.apiBaseURL.rawValue)
+                defaults.set(APIPresetProvider.openAI.defaultModel, forKey: Key.apiModelName.rawValue)
+                return .openAI
+            }
+            guard let preset = APIPresetProvider(rawValue: raw) else {
                 return .openAI
             }
             return preset
@@ -125,11 +145,76 @@ final class AppSettings: ObservableObject, @unchecked Sendable {
         set { defaults.set(newValue, forKey: Key.apiBaseURL.rawValue); objectWillChange.send() }
     }
 
+    /// Keychain account names for the app's secrets.
+    private enum Secret {
+        static let sttAPIKey = "apiKey"
+        static let llmAPIKey = "llmAPIKey"
+    }
+
+    /// Speech-to-text provider API key. Stored in the Keychain, never in UserDefaults.
     var apiKey: String {
+        get { KeychainStore.get(Secret.sttAPIKey) ?? "" }
+        set { KeychainStore.set(newValue, for: Secret.sttAPIKey); objectWillChange.send() }
+    }
+
+    // MARK: - LLM provider (post-processing + Smart Voice Editing)
+
+    /// Base URL for chat-completions used by AI post-processing and Smart Edit.
+    /// Kept separate from the STT endpoint: the two are frequently different
+    /// services, and sending the STT key to an unrelated host would leak it.
+    var llmBaseURL: String {
         get {
-            defaults.string(forKey: Key.apiKey.rawValue) ?? ""
+            let stored = defaults.string(forKey: Key.llmBaseURL.rawValue) ?? ""
+            return stored.isEmpty ? Self.defaultLLMBaseURL : stored
         }
-        set { defaults.set(newValue, forKey: Key.apiKey.rawValue); objectWillChange.send() }
+        set { defaults.set(newValue, forKey: Key.llmBaseURL.rawValue); objectWillChange.send() }
+    }
+
+    static let defaultLLMBaseURL = "https://openrouter.ai/api/v1"
+
+    /// When true, the LLM calls reuse the STT provider's key. Only honoured when
+    /// both endpoints resolve to the same host — otherwise the key is withheld,
+    /// so a third-party key can never be shipped to an unrelated provider.
+    var llmUsesSTTCredentials: Bool {
+        get { defaults.object(forKey: Key.llmUsesSTTCredentials.rawValue) as? Bool ?? false }
+        set { defaults.set(newValue, forKey: Key.llmUsesSTTCredentials.rawValue); objectWillChange.send() }
+    }
+
+    /// Dedicated LLM provider key. Stored in the Keychain.
+    var llmAPIKey: String {
+        get { KeychainStore.get(Secret.llmAPIKey) ?? "" }
+        set { KeychainStore.set(newValue, for: Secret.llmAPIKey); objectWillChange.send() }
+    }
+
+    /// The key actually sent to the LLM endpoint.
+    ///
+    /// Precedence: an explicit LLM key wins. Otherwise the STT key is reused
+    /// only if the user opted in *and* both endpoints share a host; a host
+    /// mismatch returns an empty string rather than leaking the STT secret.
+    var effectiveLLMAPIKey: String {
+        let dedicated = llmAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !dedicated.isEmpty { return dedicated }
+        guard llmUsesSTTCredentials else { return "" }
+        guard let llmHost = URL(string: llmBaseURL)?.host?.lowercased(),
+              let sttHost = URL(string: apiBaseURL)?.host?.lowercased(),
+              llmHost == sttHost else {
+            return ""
+        }
+        return apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Full chat-completions endpoint derived from `llmBaseURL`.
+    var llmChatCompletionsURL: URL? {
+        var raw = llmBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        while raw.hasSuffix("/") { raw.removeLast() }
+        guard !raw.isEmpty else { return nil }
+        if raw.hasSuffix("/chat/completions") { return URL(string: raw) }
+        return URL(string: raw + "/chat/completions")
+    }
+
+    /// True when the LLM endpoint is OpenRouter, which wants attribution headers.
+    var llmIsOpenRouter: Bool {
+        (URL(string: llmBaseURL)?.host?.lowercased() ?? "").contains("openrouter.ai")
     }
 
     var apiModelName: String {
@@ -256,6 +341,43 @@ final class AppSettings: ObservableObject, @unchecked Sendable {
             return 5.0
         }
         set { defaults.set(newValue, forKey: Key.aiPostProcessingTimeoutSeconds.rawValue); objectWillChange.send() }
+    }
+
+    // MARK: - Audio
+
+    /// Keeps the capture graph prepared between recordings so the microphone
+    /// opens instantly instead of after AVAudioEngine's 100-250 ms cold start.
+    ///
+    /// Off by default: a permanently prepared input graph can keep macOS's
+    /// microphone indicator lit while Lyra is idle, which would misrepresent
+    /// what the app is doing. Opting in is the user's call.
+    var fastMicrophoneStartEnabled: Bool {
+        get { defaults.object(forKey: Key.fastMicrophoneStartEnabled.rawValue) as? Bool ?? false }
+        set { defaults.set(newValue, forKey: Key.fastMicrophoneStartEnabled.rawValue); objectWillChange.send() }
+    }
+
+    // MARK: - Privacy
+
+    /// When false, transcriptions are never written to `history.json`.
+    /// Off-by-default would break the existing History UI, so it defaults to on
+    /// and is surfaced as an explicit "Private mode" switch in Advanced settings.
+    var historyLoggingEnabled: Bool {
+        get { defaults.object(forKey: Key.historyLoggingEnabled.rawValue) as? Bool ?? true }
+        set { defaults.set(newValue, forKey: Key.historyLoggingEnabled.rawValue); objectWillChange.send() }
+    }
+
+    // MARK: - Secret migration
+
+    /// Moves API keys written by pre-Keychain builds out of the plaintext
+    /// preferences domain and into the Keychain, then removes the originals.
+    /// Runs once; safe to call on every launch.
+    func migrateSecretsToKeychainIfNeeded() {
+        guard !defaults.bool(forKey: Key.didMigrateSecretsToKeychain.rawValue) else { return }
+        if let legacy = defaults.string(forKey: Key.apiKey.rawValue), !legacy.isEmpty {
+            KeychainStore.set(legacy, for: Secret.sttAPIKey)
+        }
+        defaults.removeObject(forKey: Key.apiKey.rawValue)
+        defaults.set(true, forKey: Key.didMigrateSecretsToKeychain.rawValue)
     }
 
     // MARK: - Smart Voice Editing Properties

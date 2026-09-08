@@ -281,41 +281,69 @@
 
     <h2><span class="hash">#</span>The short version</h2>
     <p>
-        Lyra runs entirely on your Mac. Your audio never leaves your machine.
-        There is no server. There is no telemetry. There is no account.
-        When we say "100% local," we mean it literally &mdash; and the source code is
-        right there for you to confirm.
+        Lyra has two transcription modes, and they have <strong>very different</strong>
+        privacy properties.
+    </p>
+    <p>
+        <strong>Cloud / Custom API</strong> (the default) uploads your recorded audio to the
+        provider you configure &mdash; OpenAI, Groq, OpenRouter, Google Gemini, or your own
+        local gateway. If AI post-processing or Smart Voice Editing is on, the transcribed
+        text (and any text you had selected) also goes to the chat endpoint you configured.
+        Once data reaches that provider, their privacy policy applies, not ours.
+    </p>
+    <p>
+        <strong>Local Whisper</strong> runs entirely on your Mac through whisper.cpp. Select it,
+        turn off AI post-processing and Smart Voice Editing, and nothing leaves the machine.
+        That is the configuration that is genuinely 100% local.
+    </p>
+    <p>
+        In both modes there is no Lyra server, no telemetry, no account and no update pings.
+        Every outbound connection goes to an endpoint <em>you</em> configured, or to HuggingFace
+        for a model file you asked for.
     </p>
 
-    <h2><span class="hash">#</span>What we don't do</h2>
+    <h2><span class="hash">#</span>What we never do</h2>
     <ul class="dont-list">
-        <li><span class="x">&#x2717;</span> Send your audio anywhere <span class="note">— it's processed locally and discarded</span></li>
-        <li><span class="x">&#x2717;</span> Send your transcriptions anywhere <span class="note">— they go straight to your cursor</span></li>
+        <li><span class="x">&#x2717;</span> Run a server of our own <span class="note">— your data never passes through Lyra infrastructure</span></li>
         <li><span class="x">&#x2717;</span> Track you <span class="note">— no analytics, no telemetry, no crash reports</span></li>
         <li><span class="x">&#x2717;</span> Phone home <span class="note">— no update server, no license check, no pings</span></li>
-        <li><span class="x">&#x2717;</span> Read the clipboard <span class="note">— we type at the cursor, we don't touch paste</span></li>
-        <li><span class="x">&#x2717;</span> Load web fonts <span class="note">— the app is 100% native, no browser involved</span></li>
-        <li><span class="x">&#x2717;</span> Use any external service <span class="note">— except HuggingFace, when you click Download Model</span></li>
+        <li><span class="x">&#x2717;</span> Write your audio to disk <span class="note">— recordings live in RAM and are discarded</span></li>
+        <li><span class="x">&#x2717;</span> Store your API key in plaintext <span class="note">— it lives in the macOS Keychain</span></li>
+        <li><span class="x">&#x2717;</span> Send your key to a provider you didn't enter it for <span class="note">— speech and AI endpoints are keyed separately</span></li>
+        <li><span class="x">&#x2717;</span> Download models behind your back <span class="note">— cloud-only users get no silent HuggingFace pulls</span></li>
+        <li><span class="x">&#x2717;</span> Load web fonts or remote scripts <span class="note">— the app is 100% native</span></li>
+    </ul>
+
+    <h2><span class="hash">#</span>What we do do &mdash; and where it goes</h2>
+    <ul class="dont-list">
+        <li><span class="x">&rarr;</span> <strong>Upload audio</strong> in Cloud/API mode <span class="note">— to the Base URL you configured</span></li>
+        <li><span class="x">&rarr;</span> <strong>Upload draft text</strong> when AI post-processing is on <span class="note">— to the AI Text Provider you configured</span></li>
+        <li><span class="x">&rarr;</span> <strong>Upload your selection</strong> when Smart Voice Editing rewrites highlighted text <span class="note">— same endpoint</span></li>
+        <li><span class="x">&rarr;</span> <strong>Use the clipboard</strong> for the default paste-based insertion <span class="note">— we snapshot, paste and restore it; switch to "Simulate Keystrokes" to opt out</span></li>
+        <li><span class="x">&rarr;</span> <strong>Save dictation history</strong> to <code class="kbd">~/Library/Application Support/Lyra/history.json</code> <span class="note">— unencrypted JSON; turn it off with Private mode in Advanced settings</span></li>
+        <li><span class="x">&rarr;</span> <strong>Fetch model files</strong> from HuggingFace <span class="note">— when you click Download, or when Local Whisper is selected and no model is present</span></li>
     </ul>
 
     <h2><span class="hash">#</span>Don't take our word for it</h2>
     <p>
-        The entire app is ~3,400 lines of Swift. You can audit every network-facing
-        line of code in a single <code class="kbd">grep</code>. Try this:
+        You can audit every network-facing line of code in a single
+        <code class="kbd">grep</code>. Try this:
     </p>
     <div class="verify">
         <div class="cmd"><span class="prompt">$</span> git clone https://github.com/hamidkazimov777-cmd/Lyra.git &amp;&amp; cd Lyra</div>
         <div class="cmd" style="margin-top: 8px;"><span class="prompt">$</span> grep -rE "URLSession|URLRequest|http://|https://" --include="*.swift" Lyra/</div>
         <div class="out">
+            Lyra/Engine/OpenAISpeechService.swift: transcription, model listing, AI post-processing<br>
             Lyra/Engine/ModelManager.swift: "https://huggingface.co/ggerganov/whisper.cpp/..."<br>
-            Lyra/Engine/ModelManager.swift: URLSession.shared.download(from: model.url, ...)
+            Lyra/Utilities/AppInfo.swift: static project links shown in About
         </div>
-        <div class="comment"># That's it. Every network call. All of them. Only fires when you click Download.</div>
+        <div class="comment"># Three files. Every request goes to a Base URL you set, or to HuggingFace for a model.</div>
     </div>
     <p>
-        <a href="https://github.com/hamidkazimov777-cmd/Lyra/blob/main/Lyra/Engine/ModelManager.swift">Read ModelManager.swift &rarr;</a>
-        and see for yourself. Models come from HuggingFace because that's where the Whisper
-        model files live &mdash; downloaded once, stored locally, never touched again.
+        <a href="https://github.com/hamidkazimov777-cmd/Lyra/blob/main/Lyra/Engine/OpenAISpeechService.swift">Read OpenAISpeechService.swift &rarr;</a>
+        to see exactly what is sent to your provider, and
+        <a href="https://github.com/hamidkazimov777-cmd/Lyra/blob/main/Lyra/Engine/ModelManager.swift">ModelManager.swift &rarr;</a>
+        for the model downloads.
     </p>
 
     <h2><span class="hash">#</span>Permission receipt</h2>
@@ -324,21 +352,21 @@
         <div class="receipt-card yes">
             <h3>Microphone</h3>
             <ul>
-                <li>Captures audio <strong>only while you hold the hotkey</strong></li>
+                <li>Captures audio <strong>only during an active dictation session</strong></li>
                 <li>Buffer stays in RAM</li>
-                <li>Converted to 16kHz mono, fed to Whisper</li>
-                <li>Discarded after transcription</li>
-                <li>Never written to disk</li>
+                <li>Converted to 16kHz mono</li>
+                <li>Sent to your provider, or to local Whisper</li>
+                <li>Discarded after transcription; never written to disk</li>
             </ul>
         </div>
         <div class="receipt-card yes">
             <h3>Accessibility</h3>
             <ul>
                 <li>Listens for your hotkey (CGEvent tap)</li>
-                <li>Types transcribed text at cursor</li>
+                <li>Types or pastes transcribed text at the cursor</li>
+                <li>Reads the current selection <strong>only</strong> when Smart Voice Editing is on</li>
                 <li>Does not read screen contents</li>
-                <li>Does not read other keystrokes</li>
-                <li>Does not record what you type</li>
+                <li>Does not log or transmit what you type</li>
             </ul>
         </div>
     </div>
@@ -350,10 +378,11 @@
         and you'll have a binary built from source you can read line by line.
     </p>
     <p>
-        Want to be really sure? Run <a href="https://www.obdev.at/products/littlesnitch/">Little Snitch</a>
+        Want to be really sure? Switch to <strong>Local Whisper</strong>, turn off AI post-processing
+        and Smart Voice Editing, then run <a href="https://www.obdev.at/products/littlesnitch/">Little Snitch</a>
         or <a href="https://objective-see.org/products/lulu.html">LuLu</a> while you dictate.
-        You'll see zero outbound connections. (Except when you click the Download Model button.
-        Then you'll see one. To HuggingFace. We told you.)
+        You'll see zero outbound connections. Leave Cloud mode on instead, and you'll see exactly
+        one destination: the provider whose Base URL you typed in yourself.
     </p>
 
     <h2><span class="hash">#</span>Reporting security issues</h2>

@@ -75,7 +75,7 @@ struct DynamicIslandHUDView: View {
                 }) {
                     HStack(spacing: 4) {
                         Image(systemName: "exclamationmark.triangle.fill")
-                        Text("Enable Accessibility")
+                        Text(L10n.tr("Enable Accessibility"))
                     }
                     .font(.system(size: 9, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
@@ -84,7 +84,7 @@ struct DynamicIslandHUDView: View {
                     .background(Capsule().fill(Color.orange))
                 }
                 .buttonStyle(.plain)
-                .help("Lyra requires Accessibility permission to type text at cursor. Click to open System Settings.")
+                .help(L10n.tr("Lyra requires Accessibility permission to type text at cursor. Click to open System Settings."))
             } else if let err = engine.transcriptionError {
                 HStack(spacing: 4) {
                     Image(systemName: "exclamationmark.circle.fill")
@@ -115,7 +115,7 @@ struct DynamicIslandHUDView: View {
                     .background(Circle().fill(Color.blue.opacity(0.15)))
             }
             .buttonStyle(.plain)
-            .help("Click to start dictation (or press \(hotkeyDisplay))")
+            .help(L10n.tr("Click to start dictation") + " (\(hotkeyDisplay))")
 
             // Settings Button
             Button(action: {
@@ -127,7 +127,7 @@ struct DynamicIslandHUDView: View {
                     .padding(4)
             }
             .buttonStyle(.plain)
-            .help("Open Settings")
+            .help(L10n.tr("Open Settings"))
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 7)
@@ -137,18 +137,18 @@ struct DynamicIslandHUDView: View {
             engine.toggleRecording()
         }
         .contextMenu {
-            Button("Start Dictation") {
+            Button(L10n.tr("Start Dictation")) {
                 engine.toggleRecording()
             }
             Divider()
-            Button("Open Settings...") {
+            Button(L10n.tr("Open Settings...")) {
                 NotificationCenter.default.post(name: NSNotification.Name("OpenSettings"), object: nil)
             }
-            Button(settings.isFloatingWidgetAlwaysVisible ? "Hide Floating Pill" : "Show Floating Pill") {
+            Button(settings.isFloatingWidgetAlwaysVisible ? L10n.tr("Hide Floating Pill") : L10n.tr("Show Floating Pill")) {
                 settings.isFloatingWidgetAlwaysVisible.toggle()
             }
             Divider()
-            Button("Quit Lyra") {
+            Button(L10n.tr("Quit Lyra")) {
                 NSApp.terminate(nil)
             }
         }
@@ -176,13 +176,13 @@ struct DynamicIslandHUDView: View {
                                 .scaleEffect(1.4)
                         )
 
-                    Text(engine.isHandsFreeActive ? "Stop" : (isSmartEdit ? "Smart Edit" : "Recording"))
+                    Text(engine.isHandsFreeActive ? L10n.tr("Stop") : (isSmartEdit ? L10n.tr("Smart Edit") : L10n.tr("Recording")))
                         .font(.system(size: 9, weight: .bold, design: .rounded))
                         .foregroundStyle(accentColor)
                 }
             }
             .buttonStyle(.plain)
-            .help("Click to stop dictation and insert text")
+            .help(L10n.tr("Click to stop dictation and insert text"))
 
             // Organic Fluid Voice Visualizer
             FluidOrganicSoundWave(levels: analyzer.levels, frequencyBands: analyzer.frequencyBands)
@@ -200,7 +200,7 @@ struct DynamicIslandHUDView: View {
                 HStack(spacing: 4) {
                     Image(systemName: "wand.and.stars")
                         .font(.system(size: 10))
-                    Text("Say instruction...")
+                    Text(L10n.tr("Say instruction..."))
                         .font(.system(size: 11, weight: .medium))
                 }
                 .foregroundStyle(accentColor)
@@ -226,14 +226,14 @@ struct DynamicIslandHUDView: View {
                 ProgressView()
                     .scaleEffect(0.65)
                     .frame(width: 14, height: 14)
-                Text(engine.isFallbackActive ? "Local Fallback..." : "Transcribing...")
+                Text(engine.isFallbackActive ? L10n.tr("Local Fallback...") : L10n.tr("Transcribing..."))
                     .font(.system(size: 11, weight: .semibold, design: .rounded))
                     .foregroundStyle(.orange)
             } else {
                 Image(systemName: "text.cursor")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(.blue)
-                Text("Inserting text...")
+                Text(L10n.tr("Inserting text..."))
                     .font(.system(size: 11, weight: .semibold, design: .rounded))
                     .foregroundStyle(.blue)
             }
@@ -255,7 +255,7 @@ struct DynamicIslandHUDView: View {
 
     private var providerBadge: some View {
         let isAPI = settings.transcriptionProviderType == .api
-        return Text(isAPI ? "Cloud" : "Local")
+        return Text(isAPI ? L10n.tr("Cloud") : L10n.tr("Local"))
             .font(.system(size: 8, weight: .bold, design: .rounded))
             .padding(.horizontal, 5)
             .padding(.vertical, 2)

@@ -168,6 +168,8 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
     /// Transition to idle and, if a model reload was deferred while the engine was
     /// busy, perform it now. Main-actor only.
     private func returnToIdle() {
+        pendingStartSoundWorkItem?.cancel()
+        pendingStartSoundWorkItem = nil
         state = .idle
         isHandsFreeActive = false
         isSmartEditActive = false
@@ -184,17 +186,30 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
     private func setupHotkeyMonitor() {
         hotkeyMonitor = HotkeyMonitor(
             onKeyDown: { [weak self] in self?.handleKeyDown() },
-            onKeyUp: { [weak self] in self?.handleKeyUp() }
+            onKeyUp: { [weak self] in self?.handleKeyUp() },
+            onChordAbort: { [weak self] in self?.abortRecordingForChord() }
         )
     }
 
     func startMonitoring() {
         hotkeyMonitor?.start()
+        audioCapture.prewarm()
     }
 
     func stopMonitoring() {
         cancelPendingToggle()
         hotkeyMonitor?.stop()
+        audioCapture.releaseStandbyEngine()
+    }
+
+    /// Applies a change to the "fast microphone start" preference immediately,
+    /// so turning it off releases the standby graph without a relaunch.
+    func applyFastMicrophoneStartSetting() {
+        if AppSettings.shared.fastMicrophoneStartEnabled {
+            audioCapture.prewarm()
+        } else {
+            audioCapture.releaseStandbyEngine()
+        }
     }
 
     private func cancelPendingToggle() {
@@ -259,6 +274,50 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
         } else {
             whisperBridge?.cancelTranscription()
         }
+    }
+
+    /// The hotkey press turned out to be a system chord (Option+Left, ⌥⌫, …).
+    /// Throw away everything the optimistic `handleKeyDown` started: the audio
+    /// buffer, the Smart Edit selection and the pending start chime.
+    private func abortRecordingForChord() {
+        pendingStartSoundWorkItem?.cancel()
+        pendingStartSoundWorkItem = nil
+
+        guard isRecordingStartedByHotkey else { return }
+        isRecordingStartedByHotkey = false
+
+        switch state {
+        case .recording:
+            fputs("[DictationEngine] Hotkey was part of a system chord - discarding recording.\n", stderr)
+            if isLiveSession {
+                teardownLiveSession()
+            }
+            _ = audioCapture.stopRecording()
+            returnToIdle()
+        case .processing, .typing:
+            // A chord pressed during a hands-free session first reaches
+            // handleKeyDown, which reads the modifier as "stop and transcribe".
+            // The audio buffer is already gone by the time the companion key
+            // arrives, so the best available outcome is to drop the result
+            // rather than inject text the user never asked for.
+            cancelTranscription()
+        case .idle:
+            break
+        }
+    }
+
+    /// Start chime, deferred so a system chord can cancel it before it is heard.
+    /// Audio capture itself is *not* delayed — the buffer starts filling
+    /// immediately and is simply discarded if the press turns out to be a chord.
+    private var pendingStartSoundWorkItem: DispatchWorkItem?
+    private static let startSoundGrace: TimeInterval = 0.12
+
+    private func scheduleStartSound() {
+        pendingStartSoundWorkItem?.cancel()
+        let feedback = soundFeedback
+        let item = DispatchWorkItem { feedback.playStartSound() }
+        pendingStartSoundWorkItem = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.startSoundGrace, execute: item)
     }
 
     private func handleKeyUp() {
@@ -364,7 +423,7 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
         liveTranscription = ""
         state = .recording
         recordingStartTime = Date()
-        soundFeedback.playStartSound()
+        scheduleStartSound()
 
         // Inspect highlighted selection in frontmost application for Smart Edit mode
         if AppSettings.shared.smartVoiceEditingEnabled {

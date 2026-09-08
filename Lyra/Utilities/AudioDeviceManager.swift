@@ -112,11 +112,17 @@ final class AudioDeviceManager: ObservableObject, @unchecked Sendable {
             mElement: kAudioObjectPropertyElementMain
         )
 
-        var value: CFString = "" as CFString
-        var size = UInt32(MemoryLayout<CFString>.size)
-        guard AudioObjectGetPropertyData(deviceID, &address, 0, nil, &size, &value) == noErr else {
+        // CoreAudio hands back a +1 CFString. Reading it through a raw pointer to
+        // a `CFString` variable hides that from ARC and leaks one string per poll,
+        // so take the reference explicitly via Unmanaged.
+        var unmanaged: Unmanaged<CFString>?
+        var size = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
+        let status = withUnsafeMutablePointer(to: &unmanaged) { pointer -> OSStatus in
+            AudioObjectGetPropertyData(deviceID, &address, 0, nil, &size, pointer)
+        }
+        guard status == noErr, let cfString = unmanaged?.takeRetainedValue() else {
             return nil
         }
-        return value as String
+        return cfString as String
     }
 }

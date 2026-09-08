@@ -162,3 +162,90 @@
 "No model found. Open Settings to download a model." = "No model found. Open Settings to download a model.";
 "Microphone access needed" = "Microphone access needed";
 "Accessibility access needed" = "Accessibility access needed";
+
+
+/* Added in 1.3.0: AI provider, privacy, HUD and provider-section strings */
+"AI Text Provider" = "AI Text Provider";
+"API Connection" = "API Connection";
+"Active on-device Whisper model" = "Active on-device Whisper model";
+"Active:" = "Active:";
+"Available only when both endpoints use the same host — a key is never sent to a different provider." = "Available only when both endpoints use the same host — a key is never sent to a different provider.";
+"Click to start dictation" = "Click to start dictation";
+"Click to stop dictation and insert text" = "Click to stop dictation and insert text";
+"Cloud" = "Cloud";
+"Control what Lyra stores on this Mac" = "Control what Lyra stores on this Mac";
+"Enable Accessibility" = "Enable Accessibility";
+"Endpoint and authentication credentials" = "Endpoint and authentication credentials";
+"Endpoint for post-processing and Smart Voice Editing" = "Endpoint for post-processing and Smart Voice Editing";
+"Fetch Models" = "Fetch Models";
+"Hide" = "Hide";
+"Hide Floating Pill" = "Hide Floating Pill";
+"Inserting text..." = "Inserting text...";
+"Leave empty for a local gateway that needs no authentication." = "Leave empty for a local gateway that needs no authentication.";
+"Live Dictation" = "Live Dictation";
+"Live dictation" = "Live dictation";
+"Loading Model..." = "Loading Model...";
+"Local" = "Local";
+"Local Engine Ready" = "Local Engine Ready";
+"Local Fallback..." = "Local Fallback...";
+"Local Model Status" = "Local Model Status";
+"Lyra requires Accessibility permission to type text at cursor. Click to open System Settings." = "Lyra requires Accessibility permission to type text at cursor. Click to open System Settings.";
+"Model identifier (e.g. whisper-1)" = "Model identifier (e.g. whisper-1)";
+"Open Settings" = "Open Settings";
+"Open Settings..." = "Open Settings...";
+"Preset" = "Preset";
+"Privacy" = "Privacy";
+"Private mode (do not save dictation history)" = "Private mode (do not save dictation history)";
+"Reload" = "Reload";
+"Reuse the speech provider's API key" = "Reuse the speech provider's API key";
+"Say instruction..." = "Say instruction...";
+"Select Model" = "Select Model";
+"Show" = "Show";
+"Show Floating Pill" = "Show Floating Pill";
+"Smart Edit" = "Smart Edit";
+"Start Dictation" = "Start Dictation";
+"Stop" = "Stop";
+"Type each phrase when you pause" = "Type each phrase when you pause";
+"When enabled, transcriptions are never written to history.json on disk. Existing entries are kept until you clear them in the History tab." = "When enabled, transcriptions are never written to history.json on disk. Existing entries are kept until you clear them in the History tab.";
+"Your key is stored in the macOS Keychain and sent only to the endpoint you configured." = "Your key is stored in the macOS Keychain and sent only to the endpoint you configured.";
+"models available on this API" = "models available on this API";
+
+/* Fast microphone start */
+"Microphone Start" = "Microphone Start";
+"Reduce the delay before capture begins" = "Reduce the delay before capture begins";
+"Fast microphone start" = "Fast microphone start";
+"Keeps the audio graph prepared between recordings so the first syllable is not clipped. macOS may keep the microphone indicator visible while Lyra is idle." = "Keeps the audio graph prepared between recordings so the first syllable is not clipped. macOS may keep the microphone indicator visible while Lyra is idle.";
+
+/* Live dictation captions */
+"Live dictation transcribes locally: the cloud provider, AI post-processing and Smart Voice Editing are all bypassed while it is on." = "Live dictation transcribes locally: the cloud provider, AI post-processing and Smart Voice Editing are all bypassed while it is on.";
+"Types each phrase when you pause, instead of everything at the end. Works best with small or base models." = "Types each phrase when you pause, instead of everything at the end. Works best with small or base models.";
+"Types each phrase when you pause. Works best with small or base models." = "Types each phrase when you pause. Works best with small or base models.";
+"Downloading the voice-activity model — live dictation starts working when it finishes." = "Downloading the voice-activity model — live dictation starts working when it finishes.";
+"A model download failed — retry from the Models section. Live dictation stays off until the voice-activity model is downloaded." = "A model download failed — retry from the Models section. Live dictation stays off until the voice-activity model is downloaded.";
+"Requires the voice-activity model (Models section). Live dictation is off until it's downloaded." = "Requires the voice-activity model (Models section). Live dictation is off until it's downloaded.";
+
+/* Onboarding, HUD and speech-section strings */
+"Back" = "Back";
+"Cancel download" = "Cancel download";
+"Click to change" = "Click to change";
+"Continue" = "Continue";
+"Fallback" = "Fallback";
+"Fast" = "Fast";
+"Fixes punctuation, letter casing, and speech errors while preserving meaning and language. If the AI provider takes longer than the timeout or fails, Lyra automatically uses the Whisper draft." = "Fixes punctuation, letter casing, and speech errors while preserving meaning and language. If the AI provider takes longer than the timeout or fails, Lyra automatically uses the Whisper draft.";
+"Hold your hotkey and start speaking. Fine-tune everything — hotkey, model, vocabulary — anytime from Settings in the menu bar." = "Hold your hotkey and start speaking. Fine-tune everything — hotkey, model, vocabulary — anytime from Settings in the menu bar.";
+"Model Identifier" = "Model Identifier";
+"Press any key..." = "Press any key...";
+"RECOMMENDED" = "RECOMMENDED";
+"Recommended" = "Recommended";
+"Refresh Permissions" = "Refresh Permissions";
+"Relaxed" = "Relaxed";
+"Result:" = "Result:";
+"Skip setup" = "Skip setup";
+"Slow / Thinking" = "Slow / Thinking";
+"Start Dictating" = "Start Dictating";
+"Timeout Limit" = "Timeout Limit";
+"Voice-to-text powered by Whisper. Hold a key to speak, release to type.\nChoose a cloud provider for the best accuracy, or Local Whisper to keep everything on your Mac." = "Voice-to-text powered by Whisper. Hold a key to speak, release to type.\nChoose a cloud provider for the best accuracy, or Local Whisper to keep everything on your Mac.";
+"Welcome to Lyra" = "Welcome to Lyra";
+"You can grant these later in Settings — they're just needed before you can dictate." = "You can grant these later in Settings — they're just needed before you can dictate.";
+"You're all set" = "You're all set";
+"terms" = "terms";

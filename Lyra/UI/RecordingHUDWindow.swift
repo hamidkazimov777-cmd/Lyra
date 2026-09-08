@@ -47,14 +47,14 @@ final class RecordingHUDWindow: NSObject, NSWindowDelegate {
         panel.titlebarAppearsTransparent = true
         panel.titleVisibility = .hidden
 
-        // Position: restore saved coordinates if on-screen, otherwise top-center.
+        // Position: restore saved coordinates if they still land on a connected
+        // display, otherwise top-center of the active screen.
         let settings = AppSettings.shared
         if let savedX = settings.floatingWidgetPositionX,
            let savedY = settings.floatingWidgetPositionY,
-           let screen = NSScreen.main,
-           screen.visibleFrame.contains(CGPoint(x: savedX, y: savedY)) {
+           NSScreen.screens.contains(where: { $0.visibleFrame.contains(CGPoint(x: savedX, y: savedY)) }) {
             panel.setFrameOrigin(NSPoint(x: savedX, y: savedY))
-        } else if let screenFrame = NSScreen.main?.visibleFrame {
+        } else if let screenFrame = Self.activeScreen()?.visibleFrame {
             let x = screenFrame.midX - panelWidth / 2
             let y = screenFrame.maxY - panelHeight - 12
             panel.setFrameOrigin(NSPoint(x: x, y: y))
@@ -65,7 +65,30 @@ final class RecordingHUDWindow: NSObject, NSWindowDelegate {
         update()
     }
 
+    /// The display the user is actually working on: the one under the pointer,
+    /// falling back to the key window's screen, then `NSScreen.main`.
+    ///
+    /// `NSScreen.main` alone is wrong on multi-display setups — it is the screen
+    /// with the key window, which on a docked laptop is regularly the closed lid
+    /// or a side panel, putting the HUD nowhere near the user's attention.
+    static func activeScreen() -> NSScreen? {
+        let mouse = NSEvent.mouseLocation
+        if let underCursor = NSScreen.screens.first(where: { NSMouseInRect(mouse, $0.frame, false) }) {
+            return underCursor
+        }
+        return NSApp.keyWindow?.screen ?? NSScreen.main ?? NSScreen.screens.first
+    }
+
     func show() {
+        // With no pinned position, follow the user across displays rather than
+        // reappearing on whichever screen the panel was last created on.
+        if AppSettings.shared.floatingWidgetPositionX == nil,
+           let panel,
+           let screenFrame = Self.activeScreen()?.visibleFrame {
+            let x = screenFrame.midX - panel.frame.width / 2
+            let y = screenFrame.maxY - panel.frame.height - 12
+            panel.setFrameOrigin(NSPoint(x: x, y: y))
+        }
         panel?.orderFrontRegardless()
     }
 

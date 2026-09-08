@@ -2,6 +2,7 @@ import SwiftUI
 
 struct AdvancedSection: View {
     @ObservedObject var settings: AppSettings
+    @ObservedObject var engine: DictationEngine
     let colorScheme: ColorScheme
 
     var body: some View {
@@ -45,6 +46,41 @@ struct AdvancedSection: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(.top, 4)
+            }
+
+            SettingsCard(colorScheme: colorScheme) {
+                CardHeader(L10n.tr("Microphone Start"), subtitle: L10n.tr("Reduce the delay before capture begins"))
+                Toggle(isOn: Binding(
+                    get: { settings.fastMicrophoneStartEnabled },
+                    set: {
+                        settings.fastMicrophoneStartEnabled = $0
+                        engine.applyFastMicrophoneStartSetting()
+                    }
+                )) {
+                    Text(L10n.tr("Fast microphone start"))
+                        .font(.system(size: 13))
+                }
+                .toggleStyle(.switch)
+                Text(L10n.tr("Keeps the audio graph prepared between recordings so the first syllable is not clipped. macOS may keep the microphone indicator visible while Lyra is idle."))
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            SettingsCard(colorScheme: colorScheme) {
+                CardHeader(L10n.tr("Privacy"), subtitle: L10n.tr("Control what Lyra stores on this Mac"))
+                Toggle(isOn: Binding(
+                    get: { !settings.historyLoggingEnabled },
+                    set: { settings.historyLoggingEnabled = !$0 }
+                )) {
+                    Text(L10n.tr("Private mode (do not save dictation history)"))
+                        .font(.system(size: 13))
+                }
+                .toggleStyle(.switch)
+                Text(L10n.tr("When enabled, transcriptions are never written to history.json on disk. Existing entries are kept until you clear them in the History tab."))
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             SettingsCard(colorScheme: colorScheme) {

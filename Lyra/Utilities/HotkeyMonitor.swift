@@ -10,6 +10,10 @@ final class HotkeyMonitor {
     private var localMonitor: Any?
     private let onKeyDown: () -> Void
     private let onKeyUp: () -> Void
+    /// Fired when the hotkey turns out to be part of a system chord (e.g. the
+    /// user pressed Option+Left, not Option alone). The engine must discard the
+    /// recording that `onKeyDown` optimistically started.
+    private let onChordAbort: () -> Void
     private let lock = os_unfair_lock_t.allocate(capacity: 1)
 
     private var monitoredKeyCode: CGKeyCode {
@@ -21,10 +25,18 @@ final class HotkeyMonitor {
     }
 
     private var isKeyHeld = false
+    /// True once another key was pressed while the modifier hotkey was down, so
+    /// the current press is a system chord and never a dictation gesture.
+    private var isChordInProgress = false
 
-    init(onKeyDown: @escaping () -> Void, onKeyUp: @escaping () -> Void) {
+    init(
+        onKeyDown: @escaping () -> Void,
+        onKeyUp: @escaping () -> Void,
+        onChordAbort: @escaping () -> Void = {}
+    ) {
         self.onKeyDown = onKeyDown
         self.onKeyUp = onKeyUp
+        self.onChordAbort = onChordAbort
         lock.initialize(to: os_unfair_lock())
     }
 
@@ -147,18 +159,42 @@ final class HotkeyMonitor {
         let wasHeld = isKeyHeld
         if isPressed && !wasHeld {
             isKeyHeld = true
+            isChordInProgress = false
             os_unfair_lock_unlock(lock)
             DispatchQueue.main.async { [weak self] in
                 self?.onKeyDown()
             }
         } else if !isPressed && wasHeld {
             isKeyHeld = false
+            // A chord already aborted the gesture on the first companion
+            // keystroke; releasing the modifier must not then be read as the
+            // short "tap" that latches hands-free recording.
+            let wasChord = isChordInProgress
+            isChordInProgress = false
             os_unfair_lock_unlock(lock)
+            guard !wasChord else { return }
             DispatchQueue.main.async { [weak self] in
                 self?.onKeyUp()
             }
         } else {
             os_unfair_lock_unlock(lock)
+        }
+    }
+
+    /// Called when a key other than the monitored modifier is pressed. If the
+    /// modifier is currently held, this press is a chord (Option+Left, Option+
+    /// Delete, ⌥⇧V, dead-key accents, …) — cancel the dictation that keyDown
+    /// started and latch the chord flag until the modifier is released.
+    private func noteCompanionKeyPress() {
+        os_unfair_lock_lock(lock)
+        guard isKeyHeld, !isChordInProgress else {
+            os_unfair_lock_unlock(lock)
+            return
+        }
+        isChordInProgress = true
+        os_unfair_lock_unlock(lock)
+        DispatchQueue.main.async { [weak self] in
+            self?.onChordAbort()
         }
     }
 
@@ -169,6 +205,8 @@ final class HotkeyMonitor {
                 let flags = CGEventFlags(rawValue: UInt64(event.modifierFlags.rawValue))
                 let isPressed = isModifierPressed(flags)
                 handleKeyStateChange(isPressed: isPressed)
+            } else if event.type == .keyDown || (event.type == .flagsChanged && !isTargetModifierKey(keyCode: keyCode)) {
+                noteCompanionKeyPress()
             }
         } else {
             if keyCode == monitoredKeyCode {
@@ -189,7 +227,14 @@ final class HotkeyMonitor {
                 let flags = event.flags
                 let isPressed = isModifierPressed(flags)
                 handleKeyStateChange(isPressed: isPressed)
-                return nil
+                // Never swallow a bare modifier. Option/Command/Shift/Control
+                // drive word-wise navigation, deletion, accent entry and every
+                // system shortcut; consuming the event breaks all of them
+                // system-wide while Lyra runs.
+                return Unmanaged.passRetained(event)
+            }
+            if type == .keyDown || (type == .flagsChanged && !isTargetModifierKey(keyCode: keyCode)) {
+                noteCompanionKeyPress()
             }
         } else {
             if keyCode == monitoredKeyCode {

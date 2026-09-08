@@ -97,7 +97,7 @@ struct MenuBarView: View {
                             .foregroundStyle(.blue)
                     }
                     if engine.isFallbackActive {
-                        Text("Fallback")
+                        Text(L10n.tr("Fallback"))
                             .font(.system(size: 9, weight: .bold, design: .rounded))
                             .padding(.horizontal, 5)
                             .padding(.vertical, 2)

@@ -1,3 +1,11 @@
+# XcodeGen project definition. Regenerate with `make xcodeproj` (or `xcodegen
+# generate`) after running `make whisper`, which produces the static libraries in
+# lib/ that this project links against.
+#
+# Sources are globbed from the Lyra/ directory, so new Swift files are picked up
+# automatically and cannot drift out of sync with the Makefile's file list. The
+# Makefile remains the reference build; this project exists so the app can be run,
+# debugged and unit-tested (LyraTests, XCTest) inside Xcode.
 name: Lyra
 options:
   bundleIdPrefix: com.lyra
@@ -45,6 +53,23 @@ targets:
           SWIFT_OPTIMIZATION_LEVEL: "-Onone"
         Release:
           SWIFT_OPTIMIZATION_LEVEL: "-O"
+    # The Makefile generates the app icon and menu bar icon at package time.
+    # Mirror that here so an Xcode build produces an app with the same resources.
+    preBuildScripts:
+      - name: Generate icons
+        basedOnDependencyAnalysis: false
+        script: |
+          set -e
+          TOOLS="$DERIVED_FILE_DIR/icon-tools"
+          mkdir -p "$TOOLS"
+          xcrun swiftc -O "$PROJECT_DIR/scripts/generate_app_icon.swift" -o "$TOOLS/app_icon_tool"
+          xcrun swiftc -O "$PROJECT_DIR/scripts/generate_icons.swift" -o "$TOOLS/icon_tool"
+          RES="$BUILT_PRODUCTS_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH"
+          mkdir -p "$RES"
+          "$TOOLS/app_icon_tool" "$RES"
+          "$TOOLS/icon_tool" "$RES"
+          cp -f "$PROJECT_DIR/assets/lyra-symbol.svg" "$RES/LyraConstellation.svg" || true
+          cp -f "$PROJECT_DIR/assets/lyra.svg" "$RES/lyra.svg" || true
     dependencies:
       - sdk: Accelerate.framework
       - sdk: Metal.framework
@@ -54,6 +79,7 @@ targets:
       - sdk: AppKit.framework
       - sdk: CoreAudio.framework
       - sdk: ServiceManagement.framework
+      - sdk: Security.framework
     info:
       path: Lyra/Info.plist
       properties:
@@ -75,5 +101,13 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.lyra.LyraTests
         GENERATE_INFOPLIST_FILE: YES
+        # LyraTests uses `@testable import Lyra`, which needs the app module
+        # built with testability enabled.
+        ENABLE_TESTABILITY: YES
+        SWIFT_OBJC_BRIDGING_HEADER: Lyra/Lyra-Bridging-Header.h
+        HEADER_SEARCH_PATHS:
+          - "$(PROJECT_DIR)/lib"
+        LIBRARY_SEARCH_PATHS:
+          - "$(PROJECT_DIR)/lib"
     dependencies:
       - target: Lyra

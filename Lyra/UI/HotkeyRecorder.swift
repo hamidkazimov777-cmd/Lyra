@@ -40,7 +40,7 @@ struct HotkeyRecorder: View {
                                     .fill(.white)
                                     .frame(width: 6, height: 6)
                                     .opacity(0.8)
-                                Text("Press any key...")
+                                Text(L10n.tr("Press any key..."))
                                     .font(.system(size: 12, weight: .medium))
                                     .foregroundStyle(.white)
                             }
@@ -52,7 +52,7 @@ struct HotkeyRecorder: View {
                     }
 
                     if !isRecording {
-                        Text("Click to change")
+                        Text(L10n.tr("Click to change"))
                             .font(.system(size: 11))
                             .foregroundStyle(.tertiary)
                     }

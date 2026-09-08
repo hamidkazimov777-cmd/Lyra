@@ -162,3 +162,90 @@
 "No model found. Open Settings to download a model." = "No se encontró ningún modelo. Abra Configuración para descargar un modelo.";
 "Microphone access needed" = "Se necesita acceso al micrófono";
 "Accessibility access needed" = "Se necesita acceso de accesibilidad";
+
+
+/* Added in 1.3.0: AI provider, privacy, HUD and provider-section strings */
+"AI Text Provider" = "Proveedor de IA para texto";
+"API Connection" = "Conexión a la API";
+"Active on-device Whisper model" = "Modelo Whisper local activo";
+"Active:" = "Activo:";
+"Available only when both endpoints use the same host — a key is never sent to a different provider." = "Disponible solo si ambas direcciones usan el mismo host: una clave nunca se envía a otro proveedor.";
+"Click to start dictation" = "Haz clic para empezar a dictar";
+"Click to stop dictation and insert text" = "Haz clic para detener el dictado e insertar el texto";
+"Cloud" = "Nube";
+"Control what Lyra stores on this Mac" = "Controla lo que Lyra guarda en este Mac";
+"Enable Accessibility" = "Activar Accesibilidad";
+"Endpoint and authentication credentials" = "Dirección del servicio y credenciales";
+"Endpoint for post-processing and Smart Voice Editing" = "Dirección para el posprocesado y la edición por voz inteligente";
+"Fetch Models" = "Obtener modelos";
+"Hide" = "Ocultar";
+"Hide Floating Pill" = "Ocultar panel flotante";
+"Inserting text..." = "Insertando texto...";
+"Leave empty for a local gateway that needs no authentication." = "Déjalo vacío para una pasarela local que no requiere autenticación.";
+"Live Dictation" = "Dictado en vivo";
+"Live dictation" = "Dictado en vivo";
+"Loading Model..." = "Cargando modelo...";
+"Local" = "Local";
+"Local Engine Ready" = "Motor local listo";
+"Local Fallback..." = "Reserva local...";
+"Local Model Status" = "Estado del modelo local";
+"Lyra requires Accessibility permission to type text at cursor. Click to open System Settings." = "Lyra necesita permiso de Accesibilidad para escribir texto en el cursor. Haz clic para abrir Ajustes del Sistema.";
+"Model identifier (e.g. whisper-1)" = "Identificador del modelo (p. ej. whisper-1)";
+"Open Settings" = "Abrir ajustes";
+"Open Settings..." = "Abrir ajustes...";
+"Preset" = "Preajuste";
+"Privacy" = "Privacidad";
+"Private mode (do not save dictation history)" = "Modo privado (no guardar el historial de dictados)";
+"Reload" = "Recargar";
+"Reuse the speech provider's API key" = "Reutilizar la clave del proveedor de voz";
+"Say instruction..." = "Di la instrucción...";
+"Select Model" = "Selecciona un modelo";
+"Show" = "Mostrar";
+"Show Floating Pill" = "Mostrar panel flotante";
+"Smart Edit" = "Edición inteligente";
+"Start Dictation" = "Iniciar dictado";
+"Stop" = "Detener";
+"Type each phrase when you pause" = "Escribe cada frase cuando haces una pausa";
+"When enabled, transcriptions are never written to history.json on disk. Existing entries are kept until you clear them in the History tab." = "Cuando está activado, las transcripciones nunca se escriben en history.json en el disco. Las entradas existentes se conservan hasta que las borres en la pestaña Historial.";
+"Your key is stored in the macOS Keychain and sent only to the endpoint you configured." = "Tu clave se guarda en el Llavero de macOS y solo se envía a la dirección que configuraste.";
+"models available on this API" = "modelos disponibles en esta API";
+
+/* Fast microphone start */
+"Microphone Start" = "Inicio del micrófono";
+"Reduce the delay before capture begins" = "Reduce el retardo antes de empezar a grabar";
+"Fast microphone start" = "Inicio rápido del micrófono";
+"Keeps the audio graph prepared between recordings so the first syllable is not clipped. macOS may keep the microphone indicator visible while Lyra is idle." = "Mantiene el grafo de audio preparado entre grabaciones para no cortar la primera sílaba. macOS puede mantener visible el indicador del micrófono mientras Lyra está inactiva.";
+
+/* Live dictation captions */
+"Live dictation transcribes locally: the cloud provider, AI post-processing and Smart Voice Editing are all bypassed while it is on." = "El dictado en vivo transcribe localmente: el proveedor en la nube, el posprocesado con IA y la edición por voz inteligente se omiten mientras está activado.";
+"Types each phrase when you pause, instead of everything at the end. Works best with small or base models." = "Escribe cada frase cuando haces una pausa, en vez de todo al final. Funciona mejor con modelos small o base.";
+"Types each phrase when you pause. Works best with small or base models." = "Escribe cada frase cuando haces una pausa. Funciona mejor con modelos small o base.";
+"Downloading the voice-activity model — live dictation starts working when it finishes." = "Descargando el modelo de detección de voz: el dictado en vivo funcionará al terminar.";
+"A model download failed — retry from the Models section. Live dictation stays off until the voice-activity model is downloaded." = "Falló la descarga de un modelo: reinténtalo en la sección Modelos. El dictado en vivo permanece desactivado hasta descargar el modelo de detección de voz.";
+"Requires the voice-activity model (Models section). Live dictation is off until it's downloaded." = "Requiere el modelo de detección de voz (sección Modelos). El dictado en vivo está desactivado hasta descargarlo.";
+
+/* Onboarding, HUD and speech-section strings */
+"Back" = "Atrás";
+"Cancel download" = "Cancelar descarga";
+"Click to change" = "Haz clic para cambiar";
+"Continue" = "Continuar";
+"Fallback" = "Reserva";
+"Fast" = "Rápido";
+"Fixes punctuation, letter casing, and speech errors while preserving meaning and language. If the AI provider takes longer than the timeout or fails, Lyra automatically uses the Whisper draft." = "Corrige la puntuación, las mayúsculas y los errores del habla conservando el significado y el idioma. Si el proveedor de IA tarda más que el tiempo límite o falla, Lyra usa automáticamente el borrador de Whisper.";
+"Hold your hotkey and start speaking. Fine-tune everything — hotkey, model, vocabulary — anytime from Settings in the menu bar." = "Mantén pulsada tu tecla rápida y habla. Puedes ajustarlo todo — tecla, modelo, vocabulario — cuando quieras desde Ajustes en la barra de menús.";
+"Model Identifier" = "Identificador del modelo";
+"Press any key..." = "Pulsa cualquier tecla...";
+"RECOMMENDED" = "RECOMENDADO";
+"Recommended" = "Recomendado";
+"Refresh Permissions" = "Actualizar permisos";
+"Relaxed" = "Holgado";
+"Result:" = "Resultado:";
+"Skip setup" = "Omitir configuración";
+"Slow / Thinking" = "Lento / con razonamiento";
+"Start Dictating" = "Empezar a dictar";
+"Timeout Limit" = "Tiempo límite";
+"Voice-to-text powered by Whisper. Hold a key to speak, release to type.\nChoose a cloud provider for the best accuracy, or Local Whisper to keep everything on your Mac." = "Voz a texto con Whisper. Mantén pulsada una tecla para hablar y suéltala para escribir.\nElige un proveedor en la nube para máxima precisión, o Local Whisper para que todo se quede en tu Mac.";
+"Welcome to Lyra" = "Te damos la bienvenida a Lyra";
+"You can grant these later in Settings — they're just needed before you can dictate." = "Puedes concederlos más tarde en Ajustes: solo hacen falta antes de poder dictar.";
+"You're all set" = "Todo listo";
+"terms" = "términos";

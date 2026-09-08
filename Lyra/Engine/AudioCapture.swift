@@ -2,6 +2,11 @@ import AVFoundation
 
 final class AudioCapture {
     private var audioEngine: AVAudioEngine?
+    /// Engine kept allocated and prepared between recordings when the user opts
+    /// into fast microphone start. Reusing it skips graph construction and the
+    /// AUHAL negotiation that otherwise costs 100-250 ms on every hotkey press —
+    /// long enough to clip the first syllable.
+    private var standbyEngine: AVAudioEngine?
     private var audioBuffer: [Float] = []
     private let bufferLock = NSLock()
 
@@ -60,8 +65,29 @@ final class AudioCapture {
         interleaved: false
     )!
 
-    func startRecording() throws {
+    /// Builds and prepares an engine ahead of time so the next `startRecording()`
+    /// only has to install the tap and call `start()`. No-op unless the user
+    /// enabled fast start; safe to call repeatedly.
+    func prewarm() {
+        guard AppSettings.shared.fastMicrophoneStartEnabled else { return }
+        guard standbyEngine == nil, audioEngine == nil else { return }
         let engine = AVAudioEngine()
+        AudioDeviceManager.shared.applySelectedDevice(to: engine)
+        engine.prepare()
+        standbyEngine = engine
+        fputs("[AudioCapture] Standby engine prepared\n", stderr)
+    }
+
+    /// Releases the standby engine (used when fast start is switched off).
+    func releaseStandbyEngine() {
+        guard standbyEngine != nil else { return }
+        standbyEngine = nil
+        fputs("[AudioCapture] Standby engine released\n", stderr)
+    }
+
+    func startRecording() throws {
+        let engine = standbyEngine ?? AVAudioEngine()
+        standbyEngine = nil
 
         // Apply the user-selected input device BEFORE prepare()/reading the format,
         // so the hardware format reflects the chosen device. Failure falls back to
@@ -196,9 +222,16 @@ final class AudioCapture {
             NotificationCenter.default.removeObserver(configObserver)
             self.configObserver = nil
         }
-        audioEngine?.inputNode.removeTap(onBus: 0)
-        audioEngine?.stop()
+        let finished = audioEngine
+        finished?.inputNode.removeTap(onBus: 0)
+        finished?.stop()
         audioEngine = nil
+        // Hand the graph back to standby so the next press skips re-creation.
+        // The engine is stopped, so no audio is being captured while it waits.
+        if AppSettings.shared.fastMicrophoneStartEnabled, let finished {
+            finished.prepare()
+            standbyEngine = finished
+        }
 
         bufferLock.lock()
         var buffer = audioBuffer

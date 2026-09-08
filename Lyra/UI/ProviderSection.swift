@@ -11,6 +11,7 @@ struct ProviderSection: View {
     @State private var isTesting = false
     @State private var testResult: (success: Bool, message: String)?
     @State private var showAPIKey = false
+    @State private var showLLMKey = false
     @State private var isFetchingModels = false
     @State private var fetchModelsError: String?
 
@@ -59,7 +60,7 @@ struct ProviderSection: View {
             SettingsCard(colorScheme: colorScheme) {
                 CardHeader(L10n.tr("Provider Preset"), subtitle: L10n.tr("Select a pre-configured provider or enter custom settings"))
 
-                Picker("Preset", selection: Binding(
+                Picker(L10n.tr("Preset"), selection: Binding(
                     get: { settings.apiPreset },
                     set: { newPreset in
                         settings.apiPreset = newPreset
@@ -78,11 +79,11 @@ struct ProviderSection: View {
             }
 
             SettingsCard(colorScheme: colorScheme) {
-                CardHeader("API Connection", subtitle: "Endpoint and authentication credentials")
+                CardHeader(L10n.tr("API Connection"), subtitle: L10n.tr("Endpoint and authentication credentials"))
 
                 // Base URL
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Base URL")
+                    Text(L10n.tr("Base URL"))
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(.secondary)
 
@@ -94,11 +95,11 @@ struct ProviderSection: View {
                 // API Key
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
-                        Text("API Key")
+                        Text(L10n.tr("API Key"))
                             .font(.system(size: 12, weight: .medium))
                             .foregroundStyle(.secondary)
                         Spacer()
-                        Button(showAPIKey ? "Hide" : "Show") {
+                        Button(showAPIKey ? L10n.tr("Hide") : L10n.tr("Show")) {
                             showAPIKey.toggle()
                         }
                         .buttonStyle(.borderless)
@@ -114,7 +115,7 @@ struct ProviderSection: View {
                             .textFieldStyle(.roundedBorder)
                             .font(.system(size: 12, design: .monospaced))
                     }
-                    Text("Your key is stored locally in macOS preferences and sent only to the specified endpoint.")
+                    Text(L10n.tr("Your key is stored in the macOS Keychain and sent only to the endpoint you configured."))
                         .font(.system(size: 10))
                         .foregroundStyle(.tertiary)
                 }
@@ -122,7 +123,7 @@ struct ProviderSection: View {
                 // Model Selection (with auto-fetched models picker)
                 VStack(alignment: .leading, spacing: 6) {
                     HStack {
-                        Text("Model Name")
+                        Text(L10n.tr("Model Name"))
                             .font(.system(size: 12, weight: .medium))
                             .foregroundStyle(.secondary)
                         Spacer()
@@ -137,7 +138,7 @@ struct ProviderSection: View {
                                 } else {
                                     Image(systemName: "arrow.clockwise")
                                 }
-                                Text("Fetch Models")
+                                Text(L10n.tr("Fetch Models"))
                             }
                             .font(.system(size: 11))
                         }
@@ -146,7 +147,7 @@ struct ProviderSection: View {
                     }
 
                     if !settings.apiAvailableModels.isEmpty {
-                        Picker("Select Model", selection: $settings.apiModelName) {
+                        Picker(L10n.tr("Select Model"), selection: $settings.apiModelName) {
                             ForEach(settings.apiAvailableModels, id: \.self) { model in
                                 Text(model).tag(model)
                             }
@@ -155,7 +156,7 @@ struct ProviderSection: View {
                         .font(.system(size: 12))
                     }
 
-                    TextField("Model identifier (e.g. whisper-1)", text: $settings.apiModelName)
+                    TextField(L10n.tr("Model identifier (e.g. whisper-1)"), text: $settings.apiModelName)
                         .textFieldStyle(.roundedBorder)
                         .font(.system(size: 12, design: .monospaced))
 
@@ -164,7 +165,7 @@ struct ProviderSection: View {
                             .font(.system(size: 10))
                             .foregroundStyle(.orange)
                     } else if !settings.apiAvailableModels.isEmpty {
-                        Text("\(settings.apiAvailableModels.count) models available on this API")
+                        Text("\(settings.apiAvailableModels.count) " + L10n.tr("models available on this API"))
                             .font(.system(size: 10))
                             .foregroundStyle(.secondary)
                     }
@@ -182,9 +183,9 @@ struct ProviderSection: View {
                             ProgressView()
                                 .scaleEffect(0.7)
                                 .frame(width: 14, height: 14)
-                            Text("Testing...")
+                            Text(L10n.tr("Testing..."))
                         } else {
-                            Label("Test Connection", systemImage: "bolt.horizontal.fill")
+                            Label(L10n.tr("Test Connection"), systemImage: "bolt.horizontal.fill")
                         }
                     }
                     .buttonStyle(.borderedProminent)
@@ -206,14 +207,82 @@ struct ProviderSection: View {
                     Spacer()
                 }
             }
+
+            aiProviderCard
         }
+    }
+
+    // MARK: - AI post-processing / Smart Edit provider
+
+    /// Chat-completions endpoint used by AI post-processing and Smart Voice
+    /// Editing. Deliberately independent of the speech endpoint: most speech
+    /// providers are not the user's preferred LLM, and prior builds shipped the
+    /// speech key to openrouter.ai regardless of who it belonged to.
+    private var aiProviderCard: some View {
+        SettingsCard(colorScheme: colorScheme) {
+            CardHeader(L10n.tr("AI Text Provider"), subtitle: L10n.tr("Endpoint for post-processing and Smart Voice Editing"))
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(L10n.tr("Base URL"))
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.secondary)
+                TextField(AppSettings.defaultLLMBaseURL, text: $settings.llmBaseURL)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(size: 12, design: .monospaced))
+            }
+
+            Toggle(isOn: $settings.llmUsesSTTCredentials) {
+                Text(L10n.tr("Reuse the speech provider's API key"))
+                    .font(.system(size: 12))
+            }
+            .toggleStyle(.switch)
+            .disabled(!llmSharesHostWithSpeechProvider)
+
+            if !llmSharesHostWithSpeechProvider {
+                Text(L10n.tr("Available only when both endpoints use the same host — a key is never sent to a different provider."))
+                    .font(.system(size: 10))
+                    .foregroundStyle(.tertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(L10n.tr("API Key"))
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button(showLLMKey ? L10n.tr("Hide") : L10n.tr("Show")) { showLLMKey.toggle() }
+                        .buttonStyle(.borderless)
+                        .font(.system(size: 11))
+                }
+                if showLLMKey {
+                    TextField("sk-or-...", text: $settings.llmAPIKey)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.system(size: 12, design: .monospaced))
+                } else {
+                    SecureField("sk-or-...", text: $settings.llmAPIKey)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.system(size: 12, design: .monospaced))
+                }
+                Text(L10n.tr("Leave empty for a local gateway that needs no authentication."))
+                    .font(.system(size: 10))
+                    .foregroundStyle(.tertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private var llmSharesHostWithSpeechProvider: Bool {
+        guard let llmHost = URL(string: settings.llmBaseURL)?.host?.lowercased(),
+              let sttHost = URL(string: settings.apiBaseURL)?.host?.lowercased() else { return false }
+        return llmHost == sttHost
     }
 
     // MARK: - Local Configuration
 
     private var localConfigurationCards: some View {
         SettingsCard(colorScheme: colorScheme) {
-            CardHeader("Local Model Status", subtitle: "Active on-device Whisper model")
+            CardHeader(L10n.tr("Local Model Status"), subtitle: L10n.tr("Active on-device Whisper model"))
 
             HStack(spacing: 10) {
                 Circle()
@@ -221,9 +290,9 @@ struct ProviderSection: View {
                     .frame(width: 10, height: 10)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(engine.isModelLoaded ? "Local Engine Ready" : "Loading Model...")
+                    Text(engine.isModelLoaded ? L10n.tr("Local Engine Ready") : L10n.tr("Loading Model..."))
                         .font(.system(size: 13, weight: .semibold))
-                    Text("Active: \(settings.selectedModel)")
+                    Text(L10n.tr("Active:") + " \(settings.selectedModel)")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }
@@ -231,7 +300,7 @@ struct ProviderSection: View {
                 Spacer()
 
                 if !engine.isModelLoaded {
-                    Button("Reload") {
+                    Button(L10n.tr("Reload")) {
                         engine.reloadModel()
                     }
                     .buttonStyle(.bordered)

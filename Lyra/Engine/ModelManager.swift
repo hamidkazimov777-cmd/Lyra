@@ -203,9 +203,18 @@ final class ModelManager: ObservableObject, @unchecked Sendable {
     }
 
     /// Starts downloading the recommended model for the given language if no model
-    /// for that language is present on disk. Called at launch and on language change.
+    /// for that language is present on disk.
+    ///
+    /// Only runs when Local Whisper is the selected transcription provider. A
+    /// cloud-only user must never have 190 MB–1.5 GB pulled from HuggingFace in
+    /// the background without asking — offline fallback is offered explicitly in
+    /// Settings → Speech instead.
     @MainActor
     func ensureDownloadedRecommendedModel(for language: Language) {
+        guard AppSettings.shared.transcriptionProviderType == .local else {
+            fputs("[ModelManager] Cloud provider selected - skipping automatic model download.\n", stderr)
+            return
+        }
         guard !hasUsableModel(for: language) else { return }
         let recommended = LanguageCatalog.defaultModel(for: language)
         guard !isDownloading(recommended) else { return }

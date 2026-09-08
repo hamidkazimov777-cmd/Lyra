@@ -2,39 +2,70 @@
 
 ## Threat Model
 
-Lyra is a macOS dictation app that requires two sensitive permissions: **Microphone** and **Accessibility**. Because of this, we take security seriously and have designed the app to minimize attack surface.
+Lyra is a macOS dictation app that requires two sensitive permissions — **Microphone** and **Accessibility** — and, in its default configuration, sends audio and text to a **third-party cloud API**. This document describes exactly what leaves your Mac and what stays on it.
 
-### What the app does
+### Two operating modes
+
+Lyra can run in either of two transcription modes, chosen in **Settings → Provider**:
+
+| Mode | Where audio is processed | Network |
+|---|---|---|
+| **Cloud / Custom API** (default) | Your configured provider (OpenAI, Groq, OpenRouter, Google Gemini, or a local gateway such as Ollama/vLLM) | Audio is uploaded as a WAV to that provider's `/audio/transcriptions` endpoint |
+| **Local Whisper** | Entirely on your Mac via whisper.cpp (Metal/CPU) | No audio leaves the device |
+
+**Local Whisper mode is the only configuration in which no audio or text leaves your Mac.** If you need an offline guarantee, select it and turn off AI post-processing and Smart Voice Editing.
+
+### Permissions
 
 | Permission | What it's used for |
 |-----------|-------------------|
-| Microphone | Capture audio **only** while the user holds the configured hotkey. Audio is processed in RAM (16kHz mono Float32), fed to whisper.cpp for transcription, and discarded. Never written to disk. |
-| Accessibility | Detect the global hotkey via `CGEvent.tapCreate`, and inject transcribed text at the cursor via `CGEvent.keyboardSetUnicodeString`. Does not read screen contents or other keystrokes. |
+| Microphone | Capture audio only while a dictation session is active (hotkey held, hands-free session running, or started from the HUD). Audio is buffered in RAM as 16 kHz mono Float32 and discarded when the session ends. Audio is never written to disk. |
+| Accessibility | Detect the global hotkey via `CGEvent.tapCreate`; read the current selection via the Accessibility API when Smart Voice Editing is enabled; inject text at the cursor. Lyra does not log or transmit keystrokes. |
 
-### What the app does NOT do
+### What leaves your Mac
 
-- No audio or transcription data leaves the device. Ever.
-- No logging of transcribed text. Dictated content is never written to disk, Console.app, or the unified log — it is typed at the cursor and discarded.
-- No telemetry, analytics, crash reporting, or any form of tracking.
-- No network requests except for **user-initiated model downloads** from HuggingFace.
-- No automatic updates / update server.
-- No account, license check, or any "phone home" behavior.
-- No clipboard access.
-- No web content or external scripts (the app is 100% native Swift/SwiftUI).
+Be aware of each of the following. All are visible and controllable in Settings.
+
+- **Audio → transcription provider.** In Cloud/Custom API mode, the recorded audio is uploaded to the Base URL you configured. Under the default preset that is a third party's servers, subject to *their* privacy policy and retention.
+- **Text → AI provider.** When **AI post-processing** is enabled, the draft transcription is sent to the chat-completions endpoint configured under **Settings → Provider → AI Text Provider** (OpenRouter by default).
+- **Selected text → AI provider.** When **Smart Voice Editing** is enabled and you dictate over a selection, both the selected text and your spoken instruction are sent to that same endpoint.
+- **Model catalogue requests.** On launch Lyra queries the configured providers' `/models` endpoints to populate the model pickers.
+- **Model downloads.** Whisper and voice-activity models are fetched from HuggingFace. Since 1.3.0 this happens **only** when Local Whisper is the selected provider or you click Download explicitly — never silently for cloud-only users.
+
+Lyra performs **no** telemetry, analytics, crash reporting, auto-update checks, license checks, or account/"phone home" traffic of its own. Every outbound request goes to an endpoint you configured or a model file you asked for.
+
+### What is stored on your Mac
+
+- **API keys** are stored in the **macOS Keychain** (`kSecClassGenericPassword`, service `com.lyra.Lyra`, `kSecAttrAccessibleAfterFirstUnlock`, never synced to iCloud). Builds up to 1.2.2 stored them in plaintext `UserDefaults`; 1.3.0 migrates them into the Keychain on first launch and deletes the plaintext copy.
+- **Dictation history** — up to 1000 recent transcriptions — is written to `~/Library/Application Support/Lyra/history.json` as **unencrypted JSON**, protected only by macOS file permissions. Turn this off with **Settings → Advanced → Private mode**, and clear existing entries from the History tab.
+- **Preferences** live in `~/Library/Preferences/com.lyra.Lyra.plist` and contain no secrets.
+- **Audio is never persisted.** Recorded samples exist only in memory for the duration of a session.
+
+### Clipboard
+
+The default text-insertion method is clipboard paste (`Cmd+V`), because it is the only approach that reliably handles Cyrillic and other non-Latin text across browsers, Electron apps and native software. This means Lyra **reads, temporarily overwrites and then restores** `NSPasteboard.general` on each insertion. If you would rather Lyra never touch the pasteboard, switch **Settings → Advanced → Text Insertion** to "Simulate Keystrokes".
+
+### Key isolation
+
+The speech endpoint and the AI-text endpoint are configured separately. Lyra sends the speech provider's API key to the AI endpoint **only** if you explicitly opt in *and* both endpoints resolve to the same host; on a host mismatch the key is withheld rather than transmitted. (Builds up to 1.2.2 sent the speech key to `openrouter.ai` unconditionally — if you used one of those builds with a non-OpenRouter key, rotate that key.)
 
 ## Auditability
 
-The entire app is ~3,400 lines of Swift. You can verify every network-facing line in one command:
+Every network-facing line is greppable:
 
 ```bash
 git clone https://github.com/hamidkazimov777-cmd/Lyra.git
 cd Lyra
-grep -rE "URLSession|URLRequest|http://|https://|NSURLConnection|Network\.framework" --include='*.swift' Lyra/
+grep -rE "URLSession|URLRequest|http://|https://" --include='*.swift' Lyra/
 ```
 
-The only matches are in `Lyra/Engine/ModelManager.swift` — URLs for HuggingFace model files and the `URLSession.shared.download` call that fetches them when the user clicks "Download" in Settings > Model.
+The matches are confined to three files:
 
-We also recommend running a firewall like [Little Snitch](https://www.obdev.at/products/littlesnitch/) or [LuLu](https://objective-see.org/products/lulu.html) while testing the app. You will see zero outbound connections during normal use.
+- `Lyra/Engine/OpenAISpeechService.swift` — transcription, model listing, AI post-processing and Smart Voice Editing requests, all sent to the Base URLs configured in Settings.
+- `Lyra/Engine/ModelManager.swift` — HuggingFace URLs for Whisper and voice-activity model files.
+- `Lyra/Utilities/AppInfo.swift` — static project links shown in the About screen.
+
+To verify the offline claim for Local Whisper mode, select it, disable AI post-processing and Smart Voice Editing, and watch with a firewall such as [Little Snitch](https://www.obdev.at/products/littlesnitch/) or [LuLu](https://objective-see.org/products/lulu.html). In that configuration you will see zero outbound connections during dictation.
 
 ## Build from Source
 
@@ -75,9 +106,12 @@ We aim to respond within 72 hours. Critical issues will be patched and disclosed
 ## Scope
 
 In scope:
-- Unintended network activity
+- Network activity to any endpoint the user did not configure
+- Transmission of credentials to a provider other than the one they were entered for
+- Leakage of dictated text or audio outside the configured provider
 - Privilege escalation via the Accessibility API
-- Audio capture outside of the hotkey-held state
+- Audio capture outside an active dictation session
+- Insecure storage of API keys or history on disk
 - Memory safety issues in our Swift code or bridging layer
 - Supply chain concerns around whisper.cpp or model downloads
 

@@ -109,9 +109,9 @@ struct OnboardingView: View {
             }
 
             VStack(spacing: 8) {
-                Text("Welcome to Lyra")
+                Text(L10n.tr("Welcome to Lyra"))
                     .font(.system(size: 22, weight: .bold))
-                Text("Local, private voice-to-text powered by Whisper AI.\nHold a key to speak, release to type — nothing leaves your Mac.")
+                Text(L10n.tr("Voice-to-text powered by Whisper. Hold a key to speak, release to type.\nChoose a cloud provider for the best accuracy, or Local Whisper to keep everything on your Mac."))
                     .font(.system(size: 13))
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
@@ -193,7 +193,7 @@ struct OnboardingView: View {
             }
 
             if !permissions.allPermissionsGranted {
-                Text("You can grant these later in Settings — they're just needed before you can dictate.")
+                Text(L10n.tr("You can grant these later in Settings — they're just needed before you can dictate."))
                     .font(.system(size: 11))
                     .foregroundStyle(.tertiary)
                     .multilineTextAlignment(.center)
@@ -241,9 +241,9 @@ struct OnboardingView: View {
             }
 
             VStack(spacing: 8) {
-                Text("You're all set")
+                Text(L10n.tr("You're all set"))
                     .font(.system(size: 22, weight: .bold))
-                Text("Hold your hotkey and start speaking. Fine-tune everything — hotkey, model, vocabulary — anytime from Settings in the menu bar.")
+                Text(L10n.tr("Hold your hotkey and start speaking. Fine-tune everything — hotkey, model, vocabulary — anytime from Settings in the menu bar."))
                     .font(.system(size: 13))
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
@@ -257,12 +257,12 @@ struct OnboardingView: View {
     private var footer: some View {
         HStack {
             if step == .welcome {
-                Button("Skip setup") { finish() }
+                Button(L10n.tr("Skip setup")) { finish() }
                     .buttonStyle(.plain)
                     .foregroundStyle(.secondary)
                     .font(.system(size: 12))
             } else {
-                Button("Back") { goBack() }
+                Button(L10n.tr("Back")) { goBack() }
                     .controlSize(.large)
             }
 
@@ -276,21 +276,21 @@ struct OnboardingView: View {
     private var primaryButton: some View {
         switch step {
         case .welcome, .language:
-            Button("Continue") { advance() }
+            Button(L10n.tr("Continue")) { advance() }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
         case .permissions:
-            Button("Continue") { advance() }
+            Button(L10n.tr("Continue")) { advance() }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
         case .model:
-            Button("Continue") { advance() }
+            Button(L10n.tr("Continue")) { advance() }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
                 // Require a usable model before finishing so the app isn't left unable to transcribe.
                 .disabled(modelManager.activeModelPath() == nil)
         case .done:
-            Button("Start Dictating") { finish() }
+            Button(L10n.tr("Start Dictating")) { finish() }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
         }
@@ -417,7 +417,7 @@ private struct OnboardingModelCard: View {
                 HStack(spacing: 8) {
                     Text(model.name)
                         .font(.system(size: 14, weight: .semibold))
-                    Text("RECOMMENDED")
+                    Text(L10n.tr("RECOMMENDED"))
                         .font(.system(size: 9, weight: .bold))
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
@@ -428,11 +428,11 @@ private struct OnboardingModelCard: View {
                     let progress = modelManager.downloadProgress(for: model) ?? 0
                     ProgressView(value: progress)
                         .frame(maxWidth: 220)
-                    Text("Downloading… \(Int(progress * 100))%")
+                    Text(L10n.tr("Downloading…") + " \(Int(progress * 100))%")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 } else if isDownloaded {
-                    Text("Ready — \(model.size), \(model.accuracy.lowercased()) accuracy")
+                    Text(L10n.tr("Ready") + " — \(model.size), \(model.accuracy.lowercased())")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 } else {
@@ -461,9 +461,9 @@ private struct OnboardingModelCard: View {
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
-                .help("Cancel download")
+                .help(L10n.tr("Cancel download"))
             } else {
-                Button("Download") {
+                Button(L10n.tr("Download")) {
                     modelManager.startDownload(model)
                 }
                 .buttonStyle(.borderedProminent)

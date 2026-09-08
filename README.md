@@ -131,10 +131,15 @@ Lyra lives in your macOS menu bar and Dynamic Island:
 
 ## Privacy & Security
 
-- **Direct Connections**: All cloud API calls go directly between your Mac and OpenRouter / OpenAI using SSL/TLS. No intermediate proxies or third-party servers.
-- **Ephemeral Audio**: Audio buffers reside only in RAM during dictation and are discarded immediately.
-- **Local Fallback**: Full offline operation supported with local whisper.cpp models.
-- **Zero Telemetry**: No tracking, no user analytics, no background data collection.
+Lyra ships in **Cloud / Custom API** mode by default, which means audio — and, with AI post-processing or Smart Voice Editing enabled, your text — is sent to the provider you configure. Read [SECURITY.md](SECURITY.md) for the full data-flow breakdown before deciding what to enable.
+
+- **Direct Connections**: Cloud API calls go straight from your Mac to the Base URL you configured over TLS. There is no Lyra server and no intermediate proxy.
+- **Keychain-Backed Secrets**: API keys are stored in the macOS Keychain, not in preferences. The speech key is only ever sent to the AI endpoint if you opt in *and* both endpoints share a host.
+- **Ephemeral Audio**: Audio buffers reside only in RAM during dictation and are discarded immediately. Audio is never written to disk.
+- **Fully Offline Mode**: Select **Local Whisper** and disable the AI features for operation in which nothing leaves your Mac.
+- **History Is On Disk**: Dictations are saved as unencrypted JSON under `~/Library/Application Support/Lyra/`. Turn this off with **Advanced → Private mode**.
+- **Clipboard**: The default paste-based insertion snapshots, overwrites and restores your clipboard. Switch to "Simulate Keystrokes" to avoid it entirely.
+- **Zero Telemetry**: No tracking, no user analytics, no crash reporting, no update pings.
 
 ---
 

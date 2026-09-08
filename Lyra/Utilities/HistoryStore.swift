@@ -107,6 +107,8 @@ final class HistoryStore: ObservableObject, @unchecked Sendable {
 
     /// Add a new transcription to the top of history. Trims history to `maxItems`.
     func add(text: String, language: Language, modelName: String) {
+        // Private mode: dictated text is never persisted to history.json.
+        guard AppSettings.shared.historyLoggingEnabled else { return }
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         let item = HistoryItem(
             text: text,

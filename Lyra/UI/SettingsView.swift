@@ -134,7 +134,7 @@ struct SettingsView: View {
                 case .history:
                     HistorySection()
                 case .advanced:
-                    AdvancedSection(settings: settings, colorScheme: colorScheme)
+                    AdvancedSection(settings: settings, engine: engine, colorScheme: colorScheme)
                 case .about:
                     AboutSection(colorScheme: colorScheme)
                 }
@@ -454,7 +454,7 @@ private struct ModelSection: View {
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
-            .help("Cancel download")
+            .help(L10n.tr("Cancel download"))
         }
     }
 
@@ -560,7 +560,7 @@ private struct CustomTermsEditor: View {
 
                 HStack {
                     let count = settings.customTerms.count
-                    Text("\(count) / 100 terms")
+                    Text("\(count) / 100 " + L10n.tr("terms"))
                         .font(.system(size: 11))
                         .foregroundColor(count >= 100 ? .orange : .secondary.opacity(0.5))
                     Spacer()
@@ -644,7 +644,7 @@ private struct PermissionsSection: View {
             Button {
                 permissions.checkPermissions()
             } label: {
-                Label("Refresh Permissions", systemImage: "arrow.clockwise")
+                Label(L10n.tr("Refresh Permissions"), systemImage: "arrow.clockwise")
                     .font(.system(size: 12))
             }
             .buttonStyle(.bordered)

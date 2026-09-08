@@ -77,13 +77,13 @@ struct RecordingHUDView: View {
         Group {
             switch engine.state {
             case .idle:
-                Text("Ready")
+                Text(L10n.tr("Ready"))
             case .recording:
-                Text("Listening...")
+                Text(L10n.tr("Listening..."))
             case .processing:
-                Text("Transcribing...")
+                Text(L10n.tr("Transcribing..."))
             case .typing:
-                Text("Typing...")
+                Text(L10n.tr("Typing..."))
             }
         }
     }

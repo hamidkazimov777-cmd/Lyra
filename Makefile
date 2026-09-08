@@ -9,6 +9,7 @@ APP_BUNDLE := $(BUILD_DIR)/Lyra.app
 # what we ship — Apple Silicon and Intel users both need to be able to run it.
 
 SWIFT_FILES := \
+	Lyra/Utilities/KeychainStore.swift \
 	Lyra/Utilities/LocalizationService.swift \
 	Lyra/Utilities/Settings.swift \
 	Lyra/Utilities/LanguageCatalog.swift \
@@ -53,7 +54,7 @@ SWIFT_FILES := \
 LIBS := -lwhisper -lggml -lggml-base -lggml-cpu -lggml-metal -lggml-blas -lc++
 FRAMEWORKS := -framework Accelerate -framework Metal -framework MetalKit -framework AVFoundation -framework CoreGraphics -framework AppKit -framework Foundation -framework ServiceManagement -framework CoreAudio
 
-.PHONY: all clean whisper model app run dmg
+.PHONY: all clean whisper model app run dmg test xcodeproj
 
 all: whisper app
 
@@ -148,6 +149,14 @@ test: $(BUILD_DIR)/Lyra-x86_64
 		$(filter-out Lyra/App/LyraApp.swift,$(SWIFT_FILES)) scripts/run-unit-tests.swift \
 		-o $(BUILD_DIR)/test_runner
 	@./$(BUILD_DIR)/test_runner
+
+# Generates Lyra.xcodeproj from project.yml so the app can be run, debugged and
+# unit-tested (LyraTests) inside Xcode. Requires xcodegen and a prior `make whisper`.
+xcodeproj: lib/libwhisper.a
+	@command -v xcodegen >/dev/null 2>&1 || { \
+		echo "xcodegen not found. Install it with: brew install xcodegen"; exit 1; }
+	xcodegen generate
+	@echo "Generated Lyra.xcodeproj — open it with: open Lyra.xcodeproj"
 
 clean:
 	rm -rf $(BUILD_DIR)

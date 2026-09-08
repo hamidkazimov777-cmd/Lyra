@@ -7,10 +7,16 @@ final class OpenAISpeechService: SpeechTranscriptionProvider, @unchecked Sendabl
 
     private let urlSession: URLSession
 
-    init(session: URLSession = .shared) {
-        let config = URLSessionConfiguration.default
+    /// - Parameter protocolClasses: optional `URLProtocol` subclasses used to
+    ///   intercept requests. Production passes nil; tests inject a stub protocol
+    ///   so the API contract can be exercised without network access.
+    init(protocolClasses: [AnyClass]? = nil) {
+        let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = 25.0
         config.timeoutIntervalForResource = 45.0
+        if let protocolClasses {
+            config.protocolClasses = protocolClasses
+        }
         self.urlSession = URLSession(configuration: config)
     }
 
@@ -315,10 +321,12 @@ final class OpenAISpeechService: SpeechTranscriptionProvider, @unchecked Sendabl
         if let explicitKey = apiKey, !explicitKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             key = explicitKey.trimmingCharacters(in: .whitespacesAndNewlines)
         } else {
-            key = settings.apiKey
+            key = settings.effectiveLLMAPIKey
         }
 
-        let res = await fetchAvailableModels(baseURLString: "https://openrouter.ai/api/v1/models", apiKey: key)
+        var modelsBase = settings.llmBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        while modelsBase.hasSuffix("/") { modelsBase.removeLast() }
+        let res = await fetchAvailableModels(baseURLString: modelsBase + "/models", apiKey: key)
         guard res.success else { return res }
 
         var sortedModels = res.models
@@ -366,9 +374,11 @@ final class OpenAISpeechService: SpeechTranscriptionProvider, @unchecked Sendabl
 
         let startTime = CFAbsoluteTimeGetCurrent()
         let settings = AppSettings.shared
-        let apiKey = settings.apiKey
+        let apiKey = settings.effectiveLLMAPIKey
 
-        let endpointURL = URL(string: "https://openrouter.ai/api/v1/chat/completions")!
+        guard let endpointURL = settings.llmChatCompletionsURL else {
+            return PostProcessResult(text: draftText, success: false, elapsedSeconds: 0, errorMessage: "Invalid AI post-processing Base URL")
+        }
 
         let payload: [String: Any] = [
             "model": model,
@@ -387,9 +397,15 @@ final class OpenAISpeechService: SpeechTranscriptionProvider, @unchecked Sendabl
         request.httpMethod = "POST"
         request.timeoutInterval = timeoutSeconds + 1.0
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        request.setValue("https://lyra.app", forHTTPHeaderField: "HTTP-Referer")
-        request.setValue("Lyra Speech Dictation", forHTTPHeaderField: "X-Title")
+        // A local gateway (Ollama / vLLM) takes no key; sending an empty bearer
+        // makes some servers reject the request outright.
+        if !apiKey.isEmpty {
+            request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        }
+        if settings.llmIsOpenRouter {
+            request.setValue("https://lyra.app", forHTTPHeaderField: "HTTP-Referer")
+            request.setValue("Lyra Speech Dictation", forHTTPHeaderField: "X-Title")
+        }
         request.httpBody = httpBody
 
         let finalRequest = request
@@ -532,9 +548,11 @@ final class OpenAISpeechService: SpeechTranscriptionProvider, @unchecked Sendabl
 
         let startTime = CFAbsoluteTimeGetCurrent()
         let settings = AppSettings.shared
-        let apiKey = settings.apiKey
+        let apiKey = settings.effectiveLLMAPIKey
 
-        let endpointURL = URL(string: "https://openrouter.ai/api/v1/chat/completions")!
+        guard let endpointURL = settings.llmChatCompletionsURL else {
+            return PostProcessResult(text: originalText, success: false, elapsedSeconds: 0, errorMessage: "Invalid AI post-processing Base URL")
+        }
         let payload: [String: Any] = [
             "model": model,
             "messages": [
@@ -552,9 +570,15 @@ final class OpenAISpeechService: SpeechTranscriptionProvider, @unchecked Sendabl
         request.httpMethod = "POST"
         request.timeoutInterval = timeoutSeconds + 1.0
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        request.setValue("https://lyra.app", forHTTPHeaderField: "HTTP-Referer")
-        request.setValue("Lyra Speech Dictation", forHTTPHeaderField: "X-Title")
+        // A local gateway (Ollama / vLLM) takes no key; sending an empty bearer
+        // makes some servers reject the request outright.
+        if !apiKey.isEmpty {
+            request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        }
+        if settings.llmIsOpenRouter {
+            request.setValue("https://lyra.app", forHTTPHeaderField: "HTTP-Referer")
+            request.setValue("Lyra Speech Dictation", forHTTPHeaderField: "X-Title")
+        }
         request.httpBody = httpBody
 
         let finalRequest = request
