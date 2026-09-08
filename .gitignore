@@ -1,0 +1,39 @@
+# Xcode
+DerivedData/
+build/
+*.xcuserstate
+xcuserdata/
+*.xcworkspace/xcuserdata/
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+
+# Whisper models (too large for git)
+Models/
+
+# macOS
+.DS_Store
+*.swp
+*~
+
+# Build artifacts
+build/
+lib/
+*.o
+*.dylib
+whisper.cpp/build/
+
+# XcodeGen output (regenerate with `xcodegen generate`)
+*.xcodeproj
+
+# Claude Code
+.claude/
+CLAUDE.md
+
+# Superpowers docs
+docs/superpowers/
+
+# Environment
+.env
+.env.local

@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lyra — Free Local Dictation for macOS</title>
+    <meta name="description" content="Free, open-source macOS dictation. Speech-to-text powered by Whisper AI, 100% offline. No cloud, no subscriptions, no data leaves your Mac.">
+    <meta property="og:title" content="Lyra">
+    <meta property="og:description" content="Talk to your Mac. It actually listens. Free, local, private dictation powered by Whisper AI.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://hamidkazimov777-cmd.github.io/Lyra/">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;0,9..144,700;0,9..144,800;1,9..144,400;1,9..144,600&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --cream: #faf7f2;
+            --cream-dark: #f0ece4;
+            --ink: #1a1a2e;
+            --ink-light: #3d3d56;
+            --muted: #8b8680;
+            --coral: #e8503a;
+            --coral-light: #fef0ee;
+            --coral-glow: rgba(232, 80, 58, 0.12);
+            --blue: #2563eb;
+            --green: #16a34a;
+            --green-bg: #f0fdf4;
+            --warm-shadow: rgba(26, 26, 46, 0.06);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Outfit', -apple-system, sans-serif;
+            background: var(--cream);
+            color: var(--ink);
+            line-height: 1.65;
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
+        }
+
+        /* Grain overlay */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 9999;
+            opacity: 0.025;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+        }
+
+        /* Scroll animations */
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1), transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Nav */
+        nav {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 100;
+            background: rgba(250, 247, 242, 0.88);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid rgba(26, 26, 46, 0.06);
+        }
+        .nav-inner {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 0 28px;
+            height: 58px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .nav-brand {
+            font-family: 'Fraunces', serif;
+            font-weight: 700;
+            font-size: 18px;
+            color: var(--ink);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .nav-waveform {
+            width: 24px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            gap: 2px;
+        }
+        .nav-waveform span {
+            display: block;
+            width: 3px;
+            border-radius: 2px;
+            background: var(--coral);
+            animation: navWave 1.2s ease-in-out infinite;
+        }
+        .nav-waveform span:nth-child(1) { height: 8px; animation-delay: 0s; }
+        .nav-waveform span:nth-child(2) { height: 14px; animation-delay: 0.15s; }
+        .nav-waveform span:nth-child(3) { height: 10px; animation-delay: 0.3s; }
+        .nav-waveform span:nth-child(4) { height: 16px; animation-delay: 0.45s; }
+        .nav-waveform span:nth-child(5) { height: 6px; animation-delay: 0.6s; }
+        @keyframes navWave {
+            0%, 100% { transform: scaleY(1); }
+            50% { transform: scaleY(0.4); }
+        }
+        .nav-links { display: flex; gap: 24px; align-items: center; }
+        .nav-links a {
+            color: var(--muted);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+        .nav-links a:hover { color: var(--ink); }
+        .nav-gh {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .nav-gh svg { width: 17px; height: 17px; fill: currentColor; }
+
+        /* Hero */
+        .hero {
+            padding: 160px 28px 80px;
+            max-width: 820px;
+            margin: 0 auto;
+            text-align: center;
+            position: relative;
+        }
+
+        /* Waveform decoration */
+        .hero-wave {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            margin-bottom: 36px;
+            height: 48px;
+        }
+        .hero-wave span {
+            display: block;
+            width: 4px;
+            border-radius: 3px;
+            background: var(--coral);
+            opacity: 0.25;
+            animation: heroWave 2s ease-in-out infinite;
+        }
+        .hero-wave span:nth-child(1) { height: 12px; animation-delay: 0s; }
+        .hero-wave span:nth-child(2) { height: 20px; animation-delay: 0.1s; }
+        .hero-wave span:nth-child(3) { height: 32px; animation-delay: 0.2s; }
+        .hero-wave span:nth-child(4) { height: 44px; animation-delay: 0.3s; }
+        .hero-wave span:nth-child(5) { height: 36px; animation-delay: 0.4s; }
+        .hero-wave span:nth-child(6) { height: 48px; animation-delay: 0.5s; opacity: 0.4; }
+        .hero-wave span:nth-child(7) { height: 36px; animation-delay: 0.6s; }
+        .hero-wave span:nth-child(8) { height: 44px; animation-delay: 0.7s; }
+        .hero-wave span:nth-child(9) { height: 32px; animation-delay: 0.8s; }
+        .hero-wave span:nth-child(10) { height: 20px; animation-delay: 0.9s; }
+        .hero-wave span:nth-child(11) { height: 12px; animation-delay: 1.0s; }
+        @keyframes heroWave {
+            0%, 100% { transform: scaleY(1); opacity: 0.2; }
+            50% { transform: scaleY(0.5); opacity: 0.4; }
+        }
+
+        h1 {
+            font-family: 'Fraunces', serif;
+            font-size: clamp(38px, 6.5vw, 64px);
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            line-height: 1.08;
+            margin-bottom: 24px;
+            font-optical-sizing: auto;
+        }
+        h1 em {
+            font-style: italic;
+            color: var(--coral);
+        }
+        .hero-sub {
+            font-size: 18px;
+            color: var(--ink-light);
+            max-width: 480px;
+            margin: 0 auto 14px;
+            line-height: 1.7;
+            font-weight: 400;
+        }
+        .hero-aside {
+            font-size: 14px;
+            color: var(--muted);
+            margin-bottom: 40px;
+            font-weight: 400;
+        }
+        .hero-actions {
+            display: flex;
+            gap: 14px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 15px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+            border: none;
+            cursor: pointer;
+        }
+        .btn svg { width: 18px; height: 18px; }
+        .btn-primary {
+            background: var(--ink);
+            color: var(--cream);
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(26, 26, 46, 0.18);
+        }
+        .btn-secondary {
+            background: transparent;
+            color: var(--ink);
+            border: 1.5px solid rgba(26, 26, 46, 0.15);
+        }
+        .btn-secondary:hover {
+            border-color: var(--ink);
+            transform: translateY(-2px);
+        }
+
+        /* Demo ribbon */
+        .demo {
+            max-width: 640px;
+            margin: 80px auto 0;
+            padding: 0 28px;
+        }
+        .demo-window {
+            background: #1e1e2e;
+            border-radius: 14px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(26, 26, 46, 0.15), 0 0 0 1px rgba(255,255,255,0.04) inset;
+        }
+        .demo-titlebar {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 14px 18px;
+            background: rgba(255,255,255,0.04);
+        }
+        .demo-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .demo-dot:nth-child(1) { background: #ff5f57; }
+        .demo-dot:nth-child(2) { background: #ffbd2e; }
+        .demo-dot:nth-child(3) { background: #28ca41; }
+        .demo-body {
+            padding: 24px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            line-height: 1.8;
+            color: #cdd6f4;
+            min-height: 80px;
+        }
+        .demo-body .typed {
+            color: #a6e3a1;
+        }
+        .demo-body .cursor {
+            display: inline-block;
+            width: 2px;
+            height: 1.1em;
+            background: #f38ba8;
+            vertical-align: text-bottom;
+            animation: blink 1s step-end infinite;
+            margin-left: 1px;
+        }
+        @keyframes blink { 50% { opacity: 0; } }
+
+        /* Section styling */
+        section { padding: 100px 28px; }
+        .section-inner { max-width: 1000px; margin: 0 auto; }
+        .section-tag {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--coral);
+            margin-bottom: 12px;
+        }
+        .section-title {
+            font-family: 'Fraunces', serif;
+            font-size: clamp(28px, 4vw, 40px);
+            font-weight: 700;
+            letter-spacing: -0.01em;
+            line-height: 1.15;
+            margin-bottom: 16px;
+        }
+        .section-desc {
+            font-size: 16px;
+            color: var(--muted);
+            max-width: 460px;
+            margin-bottom: 48px;
+        }
+
+        /* How it works */
+        .flow {
+            display: flex;
+            gap: 0;
+            align-items: stretch;
+            margin-top: 48px;
+        }
+        .flow-step {
+            flex: 1;
+            text-align: center;
+            padding: 32px 20px;
+            position: relative;
+            transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .flow-step:hover { transform: translateY(-4px); }
+        .flow-step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 1px;
+            height: 60%;
+            background: linear-gradient(to bottom, transparent, rgba(26,26,46,0.08), transparent);
+        }
+        .flow-num {
+            font-family: 'Fraunces', serif;
+            font-size: 42px;
+            font-weight: 300;
+            color: var(--coral);
+            opacity: 0.3;
+            line-height: 1;
+            margin-bottom: 16px;
+        }
+        .flow-key {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 8px;
+            background: var(--cream-dark);
+            border: 1px solid rgba(26,26,46,0.08);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 0 rgba(26,26,46,0.04);
+        }
+        .flow-label {
+            font-family: 'Fraunces', serif;
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+        .flow-desc {
+            font-size: 14px;
+            color: var(--muted);
+        }
+
+        /* Features */
+        .features-section { background: var(--cream-dark); }
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2px;
+            background: rgba(26,26,46,0.04);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        .feature-cell {
+            background: var(--cream-dark);
+            padding: 36px 28px;
+            transition: background 0.3s;
+        }
+        .feature-cell:hover { background: var(--cream); }
+        .feature-cell h3 {
+            font-family: 'Fraunces', serif;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .feature-cell p {
+            font-size: 14px;
+            color: var(--muted);
+            line-height: 1.65;
+        }
+        .feature-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-bottom: 18px;
+        }
+
+        /* Safety */
+        .safety-section {
+            background: var(--ink);
+            color: var(--cream);
+        }
+        .safety-section .section-tag { color: var(--coral); }
+        .safety-section .section-title { color: var(--cream); }
+        .safety-section .section-desc { color: rgba(250, 247, 242, 0.55); }
+        .safety-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 32px;
+            align-items: start;
+            margin-top: 40px;
+        }
+        .dont-list-card {
+            background: rgba(250, 247, 242, 0.04);
+            border: 1px solid rgba(250, 247, 242, 0.06);
+            border-radius: 14px;
+            padding: 28px;
+        }
+        .dont-list-card h3 {
+            font-family: 'Fraunces', serif;
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: var(--cream);
+        }
+        .dont-list-card ul { list-style: none; padding: 0; }
+        .dont-list-card li {
+            display: flex;
+            gap: 12px;
+            align-items: baseline;
+            padding: 7px 0;
+            font-size: 14px;
+            color: rgba(250, 247, 242, 0.8);
+        }
+        .dont-list-card .x {
+            color: var(--coral);
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            flex-shrink: 0;
+            width: 14px;
+        }
+        .verify-card {
+            background: #0f0f1e;
+            border: 1px solid rgba(250, 247, 242, 0.06);
+            border-radius: 14px;
+            padding: 24px 28px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .verify-card .lead {
+            font-family: 'Outfit', sans-serif;
+            font-size: 14px;
+            color: rgba(250, 247, 242, 0.6);
+            margin-bottom: 18px;
+            line-height: 1.6;
+        }
+        .verify-card .cmd-line {
+            color: var(--cream);
+            font-size: 12px;
+            line-height: 1.9;
+            word-break: break-all;
+        }
+        .verify-card .prompt { color: var(--coral); margin-right: 6px; }
+        .verify-card .out {
+            color: rgba(250, 247, 242, 0.4);
+            font-size: 11px;
+            line-height: 1.85;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(250, 247, 242, 0.06);
+        }
+        .verify-card .comment {
+            color: #16a34a;
+            font-size: 11px;
+            margin-top: 8px;
+            font-style: italic;
+        }
+        .safety-cta {
+            margin-top: 32px;
+            text-align: center;
+        }
+        .safety-cta a {
+            color: var(--coral);
+            font-weight: 500;
+            font-size: 15px;
+            text-decoration: none;
+            border-bottom: 1px solid rgba(232, 80, 58, 0.3);
+            padding-bottom: 2px;
+            transition: border-color 0.2s;
+        }
+        .safety-cta a:hover { border-color: var(--coral); }
+
+        /* Comparison */
+        .vs-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-top: 48px;
+        }
+        .vs-card {
+            border-radius: 16px;
+            padding: 32px 28px;
+            border: 1.5px solid rgba(26,26,46,0.06);
+            transition: all 0.3s;
+        }
+        .vs-card:hover { transform: translateY(-3px); }
+        .vs-card.ours {
+            background: var(--cream);
+            border-color: var(--coral);
+            box-shadow: 0 8px 40px var(--coral-glow);
+        }
+        .vs-card.theirs {
+            background: var(--cream);
+            opacity: 0.7;
+        }
+        .vs-card h4 {
+            font-family: 'Fraunces', serif;
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+        .vs-price {
+            font-family: 'Fraunces', serif;
+            font-size: 28px;
+            font-weight: 800;
+            margin: 16px 0 20px;
+        }
+        .vs-price .strikethrough {
+            text-decoration: line-through;
+            color: var(--muted);
+            opacity: 0.5;
+        }
+        .vs-card.ours .vs-price { color: var(--green); }
+        .vs-subtitle {
+            font-size: 13px;
+            color: var(--muted);
+            margin-bottom: 4px;
+        }
+        .vs-list {
+            list-style: none;
+            padding: 0;
+        }
+        .vs-list li {
+            font-size: 14px;
+            padding: 8px 0;
+            border-top: 1px solid rgba(26,26,46,0.05);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .vs-list .y { color: var(--green); font-weight: 600; }
+        .vs-list .n { color: #dc2626; font-weight: 600; }
+        .vs-list .m { color: var(--muted); }
+
+        /* Models */
+        .model-stack { margin-top: 40px; }
+        .model-row {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding: 22px 24px;
+            border-radius: 14px;
+            margin-bottom: 8px;
+            border: 1.5px solid transparent;
+            transition: all 0.25s;
+            cursor: default;
+        }
+        .model-row:hover { background: var(--cream-dark); }
+        .model-row.pick {
+            background: var(--coral-light);
+            border-color: var(--coral);
+        }
+        .model-dot {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+        .model-row .info { flex: 1; }
+        .model-row .info h4 {
+            font-size: 15px;
+            font-weight: 700;
+            margin-bottom: 2px;
+        }
+        .model-row .info .meta {
+            font-size: 13px;
+            color: var(--muted);
+            display: flex;
+            gap: 14px;
+        }
+        .model-pick-badge {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            padding: 4px 10px;
+            border-radius: 6px;
+            background: var(--coral);
+            color: white;
+        }
+        .model-note {
+            margin-top: 16px;
+            font-size: 13px;
+            color: var(--muted);
+            font-style: italic;
+        }
+
+        /* Install */
+        .install-section { background: var(--ink); color: var(--cream); border-radius: 0; }
+        .install-section .section-tag { color: var(--coral); }
+        .install-section .section-title { color: var(--cream); }
+        .install-section .section-desc { color: rgba(250, 247, 242, 0.5); }
+        .install-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 48px;
+            align-items: start;
+            margin-top: 48px;
+        }
+        .install-steps { list-style: none; }
+        .install-steps li {
+            display: flex;
+            gap: 16px;
+            padding: 16px 0;
+            border-bottom: 1px solid rgba(250, 247, 242, 0.06);
+        }
+        .install-n {
+            font-family: 'Fraunces', serif;
+            font-size: 22px;
+            font-weight: 300;
+            color: var(--coral);
+            opacity: 0.6;
+            flex-shrink: 0;
+            width: 28px;
+        }
+        .install-steps li p {
+            font-size: 15px;
+            color: rgba(250, 247, 242, 0.75);
+        }
+        .install-steps li strong { color: var(--cream); }
+        .install-steps li code {
+            background: rgba(250, 247, 242, 0.08);
+            padding: 2px 8px;
+            border-radius: 5px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+        }
+        .install-steps li a {
+            color: var(--coral);
+            text-decoration: underline;
+            text-decoration-color: rgba(232, 80, 58, 0.3);
+            text-underline-offset: 3px;
+        }
+        .source-card {
+            background: rgba(250, 247, 242, 0.04);
+            border: 1px solid rgba(250, 247, 242, 0.06);
+            border-radius: 14px;
+            overflow: hidden;
+        }
+        .source-card-header {
+            padding: 14px 20px;
+            border-bottom: 1px solid rgba(250, 247, 242, 0.06);
+            font-size: 13px;
+            font-weight: 600;
+            color: rgba(250, 247, 242, 0.4);
+        }
+        .source-card pre {
+            padding: 20px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            line-height: 1.8;
+            color: rgba(250, 247, 242, 0.5);
+            overflow-x: auto;
+        }
+        .source-card pre .cmd { color: rgba(250, 247, 242, 0.85); }
+
+        /* Footer */
+        footer {
+            background: var(--ink);
+            border-top: 1px solid rgba(250, 247, 242, 0.04);
+            padding: 40px 28px;
+            text-align: center;
+        }
+        .footer-inner { max-width: 1000px; margin: 0 auto; }
+        .footer-links {
+            display: flex;
+            gap: 24px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        .footer-links a {
+            color: rgba(250, 247, 242, 0.35);
+            text-decoration: none;
+            font-size: 14px;
+            transition: color 0.2s;
+        }
+        .footer-links a:hover { color: rgba(250, 247, 242, 0.7); }
+        .footer-copy {
+            font-size: 13px;
+            color: rgba(250, 247, 242, 0.2);
+        }
+        .footer-copy a { color: rgba(250, 247, 242, 0.35); text-decoration: none; }
+
+        /* Tablet — 3-col feature grid wraps to 2 cols; last of 9 cells spans the row */
+        @media (max-width: 1024px) {
+            .feature-grid { grid-template-columns: repeat(2, 1fr); }
+            .feature-cell:last-child { grid-column: 1 / -1; }
+        }
+
+        /* Mobile */
+        @media (max-width: 768px) {
+            .nav-links a:not(.nav-gh) { display: none; }
+            .hero { padding: 130px 20px 60px; }
+            .flow { flex-direction: column; gap: 0; }
+            .flow-step:not(:last-child)::after { display: none; }
+            .feature-grid { grid-template-columns: 1fr; }
+            .vs-grid { grid-template-columns: 1fr; }
+            .install-grid { grid-template-columns: 1fr; gap: 40px; }
+            .safety-layout { grid-template-columns: 1fr; gap: 20px; }
+        }
+    </style>
+</head>
+<body>
+
+<nav>
+    <div class="nav-inner">
+        <a href="#" class="nav-brand">
+            <div class="nav-waveform">
+                <span></span><span></span><span></span><span></span><span></span>
+            </div>
+            Lyra
+        </a>
+        <div class="nav-links">
+            <a href="#features">Features</a>
+            <a href="#safety">Safety</a>
+            <a href="#models">Models</a>
+            <a href="#install">Install</a>
+            <a href="https://github.com/hamidkazimov777-cmd/Lyra" class="nav-gh" target="_blank" rel="noopener">
+                <svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+                GitHub
+            </a>
+        </div>
+    </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+    <div class="hero-wave">
+        <span></span><span></span><span></span><span></span><span></span>
+        <span></span>
+        <span></span><span></span><span></span><span></span><span></span>
+    </div>
+    <h1>Talk to your Mac.<br>It <em>actually</em> listens.</h1>
+    <p class="hero-sub">
+        Hold a key. Speak. Release. Your words appear at the cursor &mdash; like magic, except it's just really good math running on your GPU.
+    </p>
+    <p class="hero-aside">100% local. 100% free. 100% open source. Your voice never leaves your machine. Pinky promise.</p>
+    <div class="hero-actions">
+        <a href="https://github.com/hamidkazimov777-cmd/Lyra/releases/latest" class="btn btn-primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download for macOS
+        </a>
+        <a href="https://github.com/hamidkazimov777-cmd/Lyra" class="btn btn-secondary" target="_blank" rel="noopener">
+            View source
+        </a>
+    </div>
+
+    <div class="demo reveal">
+        <div class="demo-window">
+            <div class="demo-titlebar">
+                <div class="demo-dot"></div>
+                <div class="demo-dot"></div>
+                <div class="demo-dot"></div>
+            </div>
+            <div class="demo-body">
+                <span class="typed" id="typed-text"></span><span class="cursor"></span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- How it works -->
+<section>
+    <div class="section-inner reveal">
+        <div class="section-tag">How it works</div>
+        <div class="section-title">Embarrassingly simple.</div>
+        <div class="section-desc">No training. No setup wizards. No accounts. Just you and your voice.</div>
+
+        <div class="flow">
+            <div class="flow-step">
+                <div class="flow-num">1</div>
+                <div class="flow-key">&#x2325; Option</div>
+                <div class="flow-label">Hold</div>
+                <div class="flow-desc">Press and hold your hotkey. Rebind it to anything.</div>
+            </div>
+            <div class="flow-step">
+                <div class="flow-num">2</div>
+                <div class="flow-key">&#x1F3A4; ...</div>
+                <div class="flow-label">Speak</div>
+                <div class="flow-desc">Talk naturally. Whisper does the hard part.</div>
+            </div>
+            <div class="flow-step">
+                <div class="flow-num">3</div>
+                <div class="flow-key">&#x2728; done</div>
+                <div class="flow-label">Release</div>
+                <div class="flow-desc">Text appears at your cursor. Any app. Instantly.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Features -->
+<section class="features-section" id="features">
+    <div class="section-inner reveal">
+        <div class="section-tag">What it does</div>
+        <div class="section-title">The good stuff.</div>
+        <div class="section-desc">Everything you need. Nothing you don't.</div>
+
+        <div class="feature-grid">
+            <div class="feature-cell">
+                <div class="feature-dot" style="background: var(--coral);"></div>
+                <h3>What happens on your Mac, stays on your Mac</h3>
+                <p>Zero network calls. Zero telemetry. Zero analytics. Your audio never touches a server. We don't even have a server.</p>
+            </div>
+            <div class="feature-cell">
+                <div class="feature-dot" style="background: var(--green);"></div>
+                <h3>Blink and you'll miss it</h3>
+                <p>Metal GPU on Apple Silicon. Sub-second transcription. VAD trims the silence so Whisper only crunches the good bits.</p>
+            </div>
+            <div class="feature-cell">
+                <div class="feature-dot" style="background: #0ea5e9;"></div>
+                <h3>Words while you're still talking</h3>
+                <p>Optional live dictation types each phrase the moment you pause &mdash; no waiting for release. It never rewrites what it already typed, so terminals and chat boxes stay safe.</p>
+            </div>
+            <div class="feature-cell">
+                <div class="feature-dot" style="background: var(--blue);"></div>
+                <h3>Types anywhere you can type</h3>
+                <p>Terminal, VS Code, Xcode, Slack, Chrome, that one app only you use. If it has a cursor, we can type there.</p>
+            </div>
+            <div class="feature-cell">
+                <div class="feature-dot" style="background: #8b5cf6;"></div>
+                <h3>Speaks fluent developer</h3>
+                <p>500+ built-in terms. Say "kubernetes" and get "Kubernetes", not "Cooper Netties". Add your own names and jargon too.</p>
+            </div>
+            <div class="feature-cell">
+                <div class="feature-dot" style="background: #f59e0b;"></div>
+                <h3>Cleans up after you</h3>
+                <p>Auto-capitalizes. Fixes 100+ term casings. Adds punctuation. Turns "three hundred" into 300. All in under 5ms.</p>
+            </div>
+            <div class="feature-cell">
+                <div class="feature-dot" style="background: #ec4899;"></div>
+                <h3>Obsessively tweakable</h3>
+                <p>Pick your hotkey. Pick your model. Pick your mic. Toggle every correction on or off. It's your app.</p>
+            </div>
+            <div class="feature-cell">
+                <div class="feature-dot" style="background: #14b8a6;"></div>
+                <h3>Friendly to your wrists</h3>
+                <p>Push-to-talk for quick zaps, or toggle mode (press once to start, once to stop) for long dictations. Carpal-tunnel and RSI friendly &mdash; configurable hold prevents accidental activation.</p>
+            </div>
+            <div class="feature-cell">
+                <div class="feature-dot" style="background: #6366f1;"></div>
+                <h3>Free, MIT, no asterisks</h3>
+                <p>Open source. Audit it, fork it, ship it. No paywall, no upgrade prompts, no "free tier". Just an app.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Safety -->
+<section class="safety-section" id="safety">
+    <div class="section-inner reveal">
+        <div class="section-tag">Safety</div>
+        <div class="section-title">Don't trust us. <em style="font-style: italic; color: var(--coral);">Verify it yourself.</em></div>
+        <div class="section-desc">Every privacy claim on this page is something you can check in under a minute.</div>
+
+        <div class="safety-layout">
+            <div class="dont-list-card">
+                <h3>What we don't do</h3>
+                <ul>
+                    <li><span class="x">&#x2717;</span> Send your audio anywhere</li>
+                    <li><span class="x">&#x2717;</span> Send your transcriptions anywhere</li>
+                    <li><span class="x">&#x2717;</span> Track, analyze, or log anything</li>
+                    <li><span class="x">&#x2717;</span> Phone home, ever</li>
+                    <li><span class="x">&#x2717;</span> Read your clipboard</li>
+                    <li><span class="x">&#x2717;</span> Load web fonts or external scripts</li>
+                    <li><span class="x">&#x2717;</span> Need an account</li>
+                    <li><span class="x">&#x2717;</span> Need an internet connection</li>
+                </ul>
+            </div>
+
+            <div class="verify-card">
+                <p class="lead">Every network call in the entire app, in one grep:</p>
+                <div class="cmd-line"><span class="prompt">$</span> grep -rE "URLSession|http://|https://" --include="*.swift" Lyra/</div>
+                <div class="out">
+                    ModelManager.swift: "https://huggingface.co/..."<br>
+                    ModelManager.swift: URLSession.shared.download(from: model.url)
+                </div>
+                <div class="comment"># That's it. All of them. Only fires when you click Download Model.</div>
+            </div>
+        </div>
+
+        <div class="safety-cta">
+            <a href="privacy.html">Read the full privacy breakdown &rarr;</a>
+        </div>
+    </div>
+</section>
+
+<!-- Comparison -->
+<section>
+    <div class="section-inner reveal">
+        <div class="section-tag">Alternatives</div>
+        <div class="section-title">How we stack up.</div>
+        <div class="section-desc">Spoiler: really well for something that costs nothing.</div>
+
+        <div class="vs-grid">
+            <div class="vs-card ours">
+                <h4>Lyra</h4>
+                <div class="vs-subtitle">Open source</div>
+                <div class="vs-price">$0</div>
+                <ul class="vs-list">
+                    <li><span class="y">&#x2713;</span> 100% local &amp; private</li>
+                    <li><span class="y">&#x2713;</span> 500+ dev terms built in</li>
+                    <li><span class="y">&#x2713;</span> Custom names &amp; vocabulary</li>
+                    <li><span class="y">&#x2713;</span> Works offline, always</li>
+                    <li><span class="y">&#x2713;</span> MIT licensed</li>
+                </ul>
+            </div>
+            <div class="vs-card theirs">
+                <h4>Willow / WisprFlow</h4>
+                <div class="vs-subtitle">Commercial</div>
+                <div class="vs-price"><span class="strikethrough">$8-15/mo</span></div>
+                <ul class="vs-list">
+                    <li><span class="n">&#x2717;</span> Cloud-dependent</li>
+                    <li><span class="m">~</span> Some dev vocabulary</li>
+                    <li><span class="m">~</span> Varies by plan</li>
+                    <li><span class="n">&#x2717;</span> Needs internet</li>
+                    <li><span class="n">&#x2717;</span> Closed source</li>
+                </ul>
+            </div>
+            <div class="vs-card theirs">
+                <h4>Apple Dictation</h4>
+                <div class="vs-subtitle">Built in</div>
+                <div class="vs-price">$0</div>
+                <ul class="vs-list">
+                    <li><span class="n">&#x2717;</span> Sends to Apple servers</li>
+                    <li><span class="n">&#x2717;</span> Poor with tech terms</li>
+                    <li><span class="n">&#x2717;</span> No customization</li>
+                    <li><span class="m">~</span> Partial offline</li>
+                    <li><span class="n">&#x2717;</span> Closed source</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Models -->
+<section id="models">
+    <div class="section-inner reveal">
+        <div class="section-tag">Models</div>
+        <div class="section-title">Pick your speed.</div>
+        <div class="section-desc">Quantized models. Smaller, faster, nearly identical accuracy.</div>
+
+        <div class="model-stack">
+            <div class="model-row">
+                <div class="model-dot" style="background: rgba(22,163,74,0.1); color: var(--green);">&#x26A1;</div>
+                <div class="info">
+                    <h4>Base Q5</h4>
+                    <div class="meta"><span>57 MB</span><span>~0.2s</span><span>Good accuracy</span></div>
+                </div>
+            </div>
+            <div class="model-row pick">
+                <div class="model-dot" style="background: var(--coral-glow); color: var(--coral);">&#x1F3AF;</div>
+                <div class="info">
+                    <h4>Small Q5</h4>
+                    <div class="meta"><span>181 MB</span><span>~0.4s</span><span>Better accuracy</span></div>
+                </div>
+                <span class="model-pick-badge">Recommended</span>
+            </div>
+            <div class="model-row">
+                <div class="model-dot" style="background: rgba(139,92,246,0.1); color: #8b5cf6;">&#x1F9E0;</div>
+                <div class="info">
+                    <h4>Medium Q5</h4>
+                    <div class="meta"><span>515 MB</span><span>~1.0s</span><span>Best accuracy</span></div>
+                </div>
+            </div>
+        </div>
+        <p class="model-note">Speeds measured on Apple Silicon with Metal GPU. Download models in the app &mdash; Settings &gt; Model.</p>
+    </div>
+</section>
+
+<!-- Install -->
+<section class="install-section" id="install">
+    <div class="section-inner reveal">
+        <div class="section-tag">Get started</div>
+        <div class="section-title">90 seconds. Tops.</div>
+        <div class="section-desc">We timed it. Okay, maybe two minutes if you read slowly.</div>
+
+        <div class="install-grid">
+            <ol class="install-steps">
+                <li>
+                    <span class="install-n">1</span>
+                    <p>Download <strong>Lyra.dmg</strong> from <a href="https://github.com/hamidkazimov777-cmd/Lyra/releases/latest">Releases</a></p>
+                </li>
+                <li>
+                    <span class="install-n">2</span>
+                    <p>Open the DMG, drag to <strong>Applications</strong></p>
+                </li>
+                <li>
+                    <span class="install-n">3</span>
+                    <p>If macOS blocks it: <strong>System Settings &gt; Privacy &amp; Security &gt; Open Anyway</strong>, or run <code>xattr -cr /Applications/Lyra.app</code></p>
+                </li>
+                <li>
+                    <span class="install-n">4</span>
+                    <p>Grant <strong>Microphone</strong> + <strong>Accessibility</strong> permissions</p>
+                </li>
+                <li>
+                    <span class="install-n">5</span>
+                    <p>Settings &gt; Model &gt; download <strong>Small Q5</strong> (181 MB)</p>
+                </li>
+            </ol>
+
+            <div class="source-card">
+                <div class="source-card-header">Or build from source</div>
+                <pre><span># Clone with whisper.cpp submodule</span>
+<span class="cmd">git clone --recurse-submodules \</span>
+<span class="cmd">  https://github.com/hamidkazimov777-cmd/Lyra.git</span>
+<span class="cmd">cd Lyra</span>
+
+<span># Build everything and launch</span>
+<span class="cmd">make whisper && make model && make run</span></pre>
+            </div>
+        </div>
+    </div>
+</section>
+
+<footer>
+    <div class="footer-inner">
+        <div class="footer-links">
+            <a href="https://github.com/hamidkazimov777-cmd/Lyra">GitHub</a>
+            <a href="https://github.com/hamidkazimov777-cmd/Lyra/releases">Releases</a>
+            <a href="privacy.html">Privacy</a>
+            <a href="https://github.com/hamidkazimov777-cmd/Lyra/blob/main/SECURITY.md">Security</a>
+            <a href="https://github.com/hamidkazimov777-cmd/Lyra/blob/main/LICENSE">MIT License</a>
+        </div>
+        <p class="footer-copy">
+            Made with loud typing and quiet whispers &mdash; <a href="https://github.com/hamidkazimov777-cmd">hamidkazimov777-cmd</a>
+        </p>
+    </div>
+</footer>
+
+<script>
+// Scroll reveal
+const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); }});
+}, { threshold: 0.15 });
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+// Typewriter demo
+const phrases = [
+    { input: '"deploy the API to kubernetes with docker"', output: 'Deploy the API to Kubernetes with Docker.' },
+    { input: '"i need three hundred megabytes of ram"', output: 'I need 300 megabytes of RAM.' },
+    { input: '"set up ci cd for the graphql endpoint"', output: 'Set up CI/CD for the GraphQL endpoint.' },
+    { input: '"schedule a call with mckinsey on friday"', output: 'Schedule a call with McKinsey on Friday.' },
+];
+let phraseIdx = 0;
+const typedEl = document.getElementById('typed-text');
+
+async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function typePhrase() {
+    const phrase = phrases[phraseIdx % phrases.length];
+    typedEl.textContent = '';
+
+    // Type the output character by character
+    for (let i = 0; i < phrase.output.length; i++) {
+        typedEl.textContent = phrase.output.slice(0, i + 1);
+        await sleep(28 + Math.random() * 32);
+    }
+
+    await sleep(2800);
+
+    // Clear
+    for (let i = phrase.output.length; i >= 0; i--) {
+        typedEl.textContent = phrase.output.slice(0, i);
+        await sleep(14);
+    }
+
+    await sleep(500);
+    phraseIdx++;
+    typePhrase();
+}
+
+// Start after a short delay
+setTimeout(typePhrase, 800);
+</script>
+
+</body>
+</html>

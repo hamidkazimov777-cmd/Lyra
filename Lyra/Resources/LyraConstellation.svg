@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 150" width="100%" height="100%">
+  <g fill="none" stroke="#70B5FF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Lyra Triangle (Vega, epsilon, zeta) -->
+    <polygon points="110,33.5 126.5,48 95.5,63" />
+    <!-- Lyra Parallelogram (delta, zeta, gamma, beta) -->
+    <polygon points="51,67.5 95.5,63 64,114 29.5,114" />
+  </g>
+  <!-- Constellation Stars -->
+  <g fill="#B6D6FF">
+    <!-- Vega (alpha Lyrae) - Prominent Star -->
+    <circle cx="110" cy="33.5" r="3.6" />
+    <!-- epsilon Lyrae -->
+    <circle cx="126.5" cy="48" r="2.4" />
+    <!-- zeta Lyrae -->
+    <circle cx="95.5" cy="63" r="2.4" />
+    <!-- delta Lyrae -->
+    <circle cx="51" cy="67.5" r="2.4" />
+    <!-- beta Lyrae (Sheliak) -->
+    <circle cx="29.5" cy="114" r="2.6" />
+    <!-- gamma Lyrae (Sulafat) -->
+    <circle cx="64" cy="114" r="2.6" />
+  </g>
+</svg>

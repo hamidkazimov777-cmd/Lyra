@@ -1,0 +1,79 @@
+name: Lyra
+options:
+  bundleIdPrefix: com.lyra
+  deploymentTarget:
+    macOS: "12.0"
+  xcodeVersion: "16.0"
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5"
+    MACOSX_DEPLOYMENT_TARGET: "12.0"
+
+targets:
+  Lyra:
+    type: application
+    platform: macOS
+    sources:
+      - path: Lyra
+        excludes:
+          - "**/*.entitlements"
+          - "Info.plist"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.lyra.Lyra
+        INFOPLIST_FILE: Lyra/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Lyra/Lyra.entitlements
+        SWIFT_OBJC_BRIDGING_HEADER: Lyra/Lyra-Bridging-Header.h
+        HEADER_SEARCH_PATHS:
+          - "$(PROJECT_DIR)/lib"
+        LIBRARY_SEARCH_PATHS:
+          - "$(PROJECT_DIR)/lib"
+        OTHER_LDFLAGS:
+          - "-lwhisper"
+          - "-lggml"
+          - "-lggml-base"
+          - "-lggml-cpu"
+          - "-lggml-metal"
+          - "-lggml-blas"
+          - "-lc++"
+        CODE_SIGN_IDENTITY: "-"
+        ENABLE_HARDENED_RUNTIME: false
+      configs:
+        Debug:
+          SWIFT_OPTIMIZATION_LEVEL: "-Onone"
+        Release:
+          SWIFT_OPTIMIZATION_LEVEL: "-O"
+    dependencies:
+      - sdk: Accelerate.framework
+      - sdk: Metal.framework
+      - sdk: MetalKit.framework
+      - sdk: AVFoundation.framework
+      - sdk: CoreGraphics.framework
+      - sdk: AppKit.framework
+      - sdk: CoreAudio.framework
+      - sdk: ServiceManagement.framework
+    info:
+      path: Lyra/Info.plist
+      properties:
+        LSUIElement: true
+        NSMicrophoneUsageDescription: "Lyra needs microphone access to capture your voice for speech-to-text transcription."
+        NSPrincipalClass: NSApplication
+        CFBundleIconFile: AppIcon
+    entitlements:
+      path: Lyra/Lyra.entitlements
+      properties:
+        com.apple.security.device.audio-input: true
+
+  LyraTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: LyraTests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.lyra.LyraTests
+        GENERATE_INFOPLIST_FILE: YES
+    dependencies:
+      - target: Lyra

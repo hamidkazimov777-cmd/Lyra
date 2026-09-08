@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 150" width="100%" height="100%">
+  <defs>
+    <radialGradient id="nebulaGlow" cx="55%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#4DA6FF" stop-opacity="0.35"/>
+      <stop offset="60%" stop-color="#7B61FF" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#0A1026" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="lineGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#E2F0FF"/>
+      <stop offset="40%" stop-color="#8AC7FF"/>
+      <stop offset="100%" stop-color="#5599FF"/>
+    </linearGradient>
+    <filter id="celestialGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="2.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Ambient Space Glow -->
+  <circle cx="82" cy="75" r="60" fill="url(#nebulaGlow)" />
+
+  <!-- Outer Glow Lines -->
+  <g fill="none" stroke="#4DA6FF" stroke-width="4.5" stroke-opacity="0.5" stroke-linecap="round" stroke-linejoin="round" filter="url(#celestialGlow)">
+    <polygon points="110,33.5 126.5,48 95.5,63" />
+    <polygon points="51,67.5 95.5,63 64,114 29.5,114" />
+  </g>
+
+  <!-- Core Crisp Constellation Lines -->
+  <g fill="none" stroke="url(#lineGrad)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <polygon points="110,33.5 126.5,48 95.5,63" />
+    <polygon points="51,67.5 95.5,63 64,114 29.5,114" />
+  </g>
+
+  <!-- Vega Starburst Diffraction Spikes -->
+  <g stroke="#E8F4FF" stroke-width="1.0" stroke-opacity="0.85" stroke-linecap="round">
+    <line x1="96" y1="33.5" x2="124" y2="33.5" />
+    <line x1="110" y1="19.5" x2="110" y2="47.5" />
+  </g>
+
+  <!-- Star Nodes -->
+  <g fill="#FFFFFF" filter="url(#celestialGlow)">
+    <!-- Vega -->
+    <circle cx="110" cy="33.5" r="4.0" fill="#FFFFFF" stroke="#8AC7FF" stroke-width="1.2" />
+    <!-- epsilon -->
+    <circle cx="126.5" cy="48" r="2.5" fill="#EBF5FF" />
+    <!-- zeta -->
+    <circle cx="95.5" cy="63" r="2.5" fill="#EBF5FF" />
+    <!-- delta -->
+    <circle cx="51" cy="67.5" r="2.5" fill="#EBF5FF" />
+    <!-- beta (Sheliak) -->
+    <circle cx="29.5" cy="114" r="2.8" fill="#EBF5FF" />
+    <!-- gamma (Sulafat) -->
+    <circle cx="64" cy="114" r="2.8" fill="#EBF5FF" />
+  </g>
+</svg>

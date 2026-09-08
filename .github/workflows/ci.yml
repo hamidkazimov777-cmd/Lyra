@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          submodules: recursive
+
+      - name: Capture whisper.cpp submodule commit
+        id: whisper
+        run: echo "sha=$(git submodule status whisper.cpp | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache whisper.cpp build
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: lib/
+          key: whisper-cpp-${{ steps.whisper.outputs.sha }}-${{ hashFiles('.gitmodules', 'whisper.cpp/CMakeLists.txt') }}-macos
+
+      - name: Build whisper.cpp
+        run: |
+          if [ ! -f lib/libwhisper.a ]; then
+            ./scripts/build-whisper.sh
+          fi
+
+      - name: Build app
+        run: make app
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Lyra.app
+          path: build/Lyra.app
+
+  test:
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          submodules: recursive
+
+      - name: Capture whisper.cpp submodule commit
+        id: whisper
+        run: echo "sha=$(git submodule status whisper.cpp | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+
+      # Same cache key as the build job so both jobs share the compiled static libs.
+      - name: Cache whisper.cpp build
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: lib/
+          key: whisper-cpp-${{ steps.whisper.outputs.sha }}-${{ hashFiles('.gitmodules', 'whisper.cpp/CMakeLists.txt') }}-macos
+
+      # The test target links the whisper static libs, so build them if not cached.
+      - name: Build whisper.cpp
+        run: |
+          if [ ! -f lib/libwhisper.a ]; then
+            ./scripts/build-whisper.sh
+          fi
+
+      - name: Install XcodeGen
+        run: brew list xcodegen >/dev/null 2>&1 || brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Run tests
+        run: xcodebuild test -project Lyra.xcodeproj -scheme Lyra -destination "platform=macOS"

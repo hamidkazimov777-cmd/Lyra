@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0E1230"/>
+      <stop offset="35%" stop-color="#0B1538"/>
+      <stop offset="70%" stop-color="#081028"/>
+      <stop offset="100%" stop-color="#050818"/>
+    </linearGradient>
+
+    <!-- Nebula Core Glow -->
+    <radialGradient id="nebulaCore" cx="55%" cy="52%" r="48%">
+      <stop offset="0%" stop-color="#3B82F6" stop-opacity="0.32"/>
+      <stop offset="50%" stop-color="#6366F1" stop-opacity="0.14"/>
+      <stop offset="100%" stop-color="#050818" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Constellation Line Gradient -->
+    <linearGradient id="iconLineGrad" x1="20%" y1="20%" x2="80%" y2="80%">
+      <stop offset="0%" stop-color="#F0F7FF"/>
+      <stop offset="45%" stop-color="#93C5FD"/>
+      <stop offset="100%" stop-color="#60A5FA"/>
+    </linearGradient>
+
+    <!-- Vega Halo -->
+    <radialGradient id="vegaHalo" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#60A5FA" stop-opacity="0.7"/>
+      <stop offset="40%" stop-color="#3B82F6" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#3B82F6" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Outer Rim Highlight -->
+    <linearGradient id="rimGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.25"/>
+      <stop offset="40%" stop-color="#60A5FA" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.03"/>
+    </linearGradient>
+
+    <filter id="glowFilter" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="12" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <clipPath id="squircleClip">
+      <rect x="41" y="41" width="942" height="942" rx="211" ry="211" />
+    </clipPath>
+  </defs>
+
+  <!-- Squircle Shadow -->
+  <rect x="41" y="55" width="942" height="942" rx="211" ry="211" fill="#000000" opacity="0.38" filter="blur(24px)" />
+
+  <!-- Squircle Body -->
+  <g clip-path="url(#squircleClip)">
+    <!-- Deep Space Background -->
+    <rect x="41" y="41" width="942" height="942" fill="url(#bgGrad)" />
+    <!-- Nebula Ambient -->
+    <circle cx="560" cy="530" r="420" fill="url(#nebulaCore)" />
+
+    <!-- Ambient Micro Stars -->
+    <g fill="#B8D9FF" opacity="0.55">
+      <circle cx="225" cy="225" r="2.8"/>
+      <circle cx="360" cy="150" r="2.2"/>
+      <circle cx="790" cy="180" r="3.2"/>
+      <circle cx="870" cy="330" r="2.4"/>
+      <circle cx="180" cy="590" r="2.6"/>
+      <circle cx="250" cy="770" r="2.0"/>
+      <circle cx="770" cy="740" r="3.0"/>
+      <circle cx="840" cy="610" r="2.2"/>
+      <circle cx="512" cy="840" r="2.5"/>
+    </g>
+
+    <!-- Outer Glow for Constellation Lines -->
+    <!-- Mapped coordinates in 1024 box:
+         padX=225, wUsable=574, padY=245, hUsable=534
+         Peak (Vega): x=701.3, y=245.0
+         Right: x=799.0, y=341.2
+         Junction: x=615.4, y=440.7
+         TL: x=351.9, y=470.5
+         BL: x=225.0, y=779.0
+         BR: x=428.9, y=779.0
+    -->
+    <g fill="none" stroke="#3B82F6" stroke-width="26" stroke-opacity="0.5" stroke-linecap="round" stroke-linejoin="round" filter="url(#glowFilter)">
+      <polygon points="701.3,245.0 799.0,341.2 615.4,440.7" />
+      <polygon points="351.9,470.5 615.4,440.7 428.9,779.0 225.0,779.0" />
+    </g>
+
+    <!-- Crisp Constellation Lines -->
+    <g fill="none" stroke="url(#iconLineGrad)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
+      <polygon points="701.3,245.0 799.0,341.2 615.4,440.7" />
+      <polygon points="351.9,470.5 615.4,440.7 428.9,779.0 225.0,779.0" />
+    </g>
+
+    <!-- Vega Star Glow & Flare -->
+    <circle cx="701.3" cy="245.0" r="88" fill="url(#vegaHalo)" />
+    <g stroke="#EBF4FF" stroke-width="3.5" stroke-opacity="0.8" stroke-linecap="round">
+      <line x1="595" y1="245.0" x2="807" y2="245.0" />
+      <line x1="701.3" y1="139" x2="701.3" y2="351" />
+    </g>
+
+    <!-- Star Nodes -->
+    <g fill="#FFFFFF">
+      <!-- Vega (alpha) -->
+      <circle cx="701.3" cy="245.0" r="23" filter="url(#glowFilter)" />
+      <!-- epsilon -->
+      <circle cx="799.0" cy="341.2" r="16" filter="url(#glowFilter)" />
+      <!-- zeta -->
+      <circle cx="615.4" cy="440.7" r="16" filter="url(#glowFilter)" />
+      <!-- delta -->
+      <circle cx="351.9" cy="470.5" r="16" filter="url(#glowFilter)" />
+      <!-- beta (Sheliak) -->
+      <circle cx="225.0" cy="779.0" r="17" filter="url(#glowFilter)" />
+      <!-- gamma (Sulafat) -->
+      <circle cx="428.9" cy="779.0" r="17" filter="url(#glowFilter)" />
+    </g>
+
+    <!-- Inner Rim Stroke -->
+    <rect x="42.5" y="42.5" width="939" height="939" rx="209.5" ry="209.5" fill="none" stroke="url(#rimGrad)" stroke-width="3" />
+  </g>
+</svg>
