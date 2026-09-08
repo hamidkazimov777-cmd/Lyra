@@ -133,8 +133,9 @@ Lyra lives in your macOS menu bar and Dynamic Island:
 
 Lyra ships in **Cloud / Custom API** mode by default, which means audio — and, with AI post-processing or Smart Voice Editing enabled, your text — is sent to the provider you configure. Read [SECURITY.md](SECURITY.md) for the full data-flow breakdown before deciding what to enable.
 
+- **Live Streaming Is Opt-In**: With a Deepgram key set, your microphone is streamed to Deepgram continuously while you speak, and its transcript is what gets inserted. This is the most privacy-significant setting in the app — clear the key to disable it.
 - **Direct Connections**: Cloud API calls go straight from your Mac to the Base URL you configured over TLS. There is no Lyra server and no intermediate proxy.
-- **Keychain-Backed Secrets**: API keys are stored in the macOS Keychain, not in preferences. The speech key is only ever sent to the AI endpoint if you opt in *and* both endpoints share a host.
+- **Keychain-Backed Secrets**: API keys — speech, AI and Deepgram — are stored in the macOS Keychain, not in preferences. The speech key is only ever sent to the AI endpoint if you opt in *and* both endpoints share a host.
 - **Ephemeral Audio**: Audio buffers reside only in RAM during dictation and are discarded immediately. Audio is never written to disk.
 - **Fully Offline Mode**: Select **Local Whisper** and disable the AI features for operation in which nothing leaves your Mac.
 - **History Is On Disk**: Dictations are saved as unencrypted JSON under `~/Library/Application Support/Lyra/`. Turn this off with **Advanced → Private mode**.

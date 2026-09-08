@@ -293,7 +293,8 @@
     </p>
     <p>
         <strong>Local Whisper</strong> runs entirely on your Mac through whisper.cpp. Select it,
-        turn off AI post-processing and Smart Voice Editing, and nothing leaves the machine.
+        clear any Deepgram key, turn off AI post-processing and Smart Voice Editing, and nothing
+        leaves the machine.
         That is the configuration that is genuinely 100% local.
     </p>
     <p>
@@ -316,7 +317,8 @@
 
     <h2><span class="hash">#</span>What we do do &mdash; and where it goes</h2>
     <ul class="dont-list">
-        <li><span class="x">&rarr;</span> <strong>Upload audio</strong> in Cloud/API mode <span class="note">— to the Base URL you configured</span></li>
+        <li><span class="x">&rarr;</span> <strong>Stream your microphone live to Deepgram</strong> when a Deepgram key is set <span class="note">— continuously, while you speak, over an open WebSocket; clear the key to stop it</span></li>
+        <li><span class="x">&rarr;</span> <strong>Upload audio</strong> in Cloud/API mode <span class="note">— to the Base URL you configured, after you stop</span></li>
         <li><span class="x">&rarr;</span> <strong>Upload draft text</strong> when AI post-processing is on <span class="note">— to the AI Text Provider you configured</span></li>
         <li><span class="x">&rarr;</span> <strong>Upload your selection</strong> when Smart Voice Editing rewrites highlighted text <span class="note">— same endpoint</span></li>
         <li><span class="x">&rarr;</span> <strong>Use the clipboard</strong> for the default paste-based insertion <span class="note">— we snapshot, paste and restore it; switch to "Simulate Keystrokes" to opt out</span></li>
@@ -334,6 +336,7 @@
         <div class="cmd" style="margin-top: 8px;"><span class="prompt">$</span> grep -rE "URLSession|URLRequest|http://|https://" --include="*.swift" Lyra/</div>
         <div class="out">
             Lyra/Engine/OpenAISpeechService.swift: transcription, model listing, AI post-processing<br>
+            Lyra/Engine/DeepgramStreamingClient.swift: live audio WebSocket (only with a key set)<br>
             Lyra/Engine/ModelManager.swift: "https://huggingface.co/ggerganov/whisper.cpp/..."<br>
             Lyra/Utilities/AppInfo.swift: static project links shown in About
         </div>

@@ -10,10 +10,11 @@ Lyra can run in either of two transcription modes, chosen in **Settings → Prov
 
 | Mode | Where audio is processed | Network |
 |---|---|---|
-| **Cloud / Custom API** (default) | Your configured provider (OpenAI, Groq, OpenRouter, Google Gemini, or a local gateway such as Ollama/vLLM) | Audio is uploaded as a WAV to that provider's `/audio/transcriptions` endpoint |
+| **Streaming** (when a Deepgram key is set) | Deepgram | Audio is streamed live over a WebSocket while you speak |
+| **Cloud / Custom API** (default) | Your configured provider (OpenAI, Groq, OpenRouter, Google Gemini, or a local gateway such as Ollama/vLLM) | Audio is uploaded as a WAV after you stop, to that provider's `/audio/transcriptions` endpoint |
 | **Local Whisper** | Entirely on your Mac via whisper.cpp (Metal/CPU) | No audio leaves the device |
 
-**Local Whisper mode is the only configuration in which no audio or text leaves your Mac.** If you need an offline guarantee, select it and turn off AI post-processing and Smart Voice Editing.
+**Local Whisper mode is the only configuration in which no audio or text leaves your Mac.** If you need an offline guarantee, select it, remove any Deepgram key, and turn off AI post-processing and Smart Voice Editing.
 
 ### Permissions
 
@@ -26,7 +27,9 @@ Lyra can run in either of two transcription modes, chosen in **Settings → Prov
 
 Be aware of each of the following. All are visible and controllable in Settings.
 
-- **Audio → transcription provider.** In Cloud/Custom API mode, the recorded audio is uploaded to the Base URL you configured. Under the default preset that is a third party's servers, subject to *their* privacy policy and retention.
+- **Live audio → Deepgram.** When a Deepgram key is configured, audio is streamed to `wss://api.deepgram.com` continuously *while you speak*, over an open WebSocket, and the transcript it returns is what gets inserted. This is the most privacy-significant path in the app: unlike the upload-after-the-fact provider below, the microphone feed leaves the machine in real time, and it keeps streaming for as long as a hands-free session is running. Remove the key in **Settings → Provider → Streaming Transcription** to stop it entirely.
+- **Audio → transcription provider.** Without a Deepgram key — or whenever the stream fails — the recorded audio is uploaded after you stop, to the Base URL you configured. Under the default preset that is a third party's servers, subject to *their* privacy policy and retention.
+- **Your vocabulary → both providers.** The terms in Settings → Dictation are sent to Deepgram as recognition hints and included in the post-processing prompt, so treat that list as data you are sharing, not as a local-only setting.
 - **Text → AI provider.** When **AI post-processing** is enabled, the draft transcription is sent to the chat-completions endpoint configured under **Settings → Provider → AI Text Provider** (OpenRouter by default).
 - **Selected text → AI provider.** When **Smart Voice Editing** is enabled and you dictate over a selection, both the selected text and your spoken instruction are sent to that same endpoint.
 - **Model catalogue requests.** On launch Lyra queries the configured providers' `/models` endpoints to populate the model pickers.
@@ -36,7 +39,7 @@ Lyra performs **no** telemetry, analytics, crash reporting, auto-update checks, 
 
 ### What is stored on your Mac
 
-- **API keys** are stored in the **macOS Keychain** (`kSecClassGenericPassword`, service `com.lyra.Lyra`, `kSecAttrAccessibleAfterFirstUnlock`, never synced to iCloud). Builds up to 1.2.2 stored them in plaintext `UserDefaults`; 1.3.0 migrates them into the Keychain on first launch and deletes the plaintext copy.
+- **API keys** — for the speech provider, the AI provider and Deepgram — are stored in the **macOS Keychain** (`kSecClassGenericPassword`, service `com.lyra.Lyra`, `kSecAttrAccessibleAfterFirstUnlock`, never synced to iCloud). Builds up to 1.2.2 stored them in plaintext `UserDefaults`; 1.3.0 migrates them into the Keychain on first launch and deletes the plaintext copy.
 - **Dictation history** — up to 1000 recent transcriptions — is written to `~/Library/Application Support/Lyra/history.json` as **unencrypted JSON**, written with `0600` permissions so other accounts on the machine cannot read it, but not encrypted. Turn this off with **Settings → Advanced → Private mode**, and clear existing entries from the History tab.
 - **Preferences** live in `~/Library/Preferences/com.lyra.Lyra.plist` and contain no secrets.
 - **Logs contain no dictated text.** Release builds log timings and character counts only; the content-bearing log lines are compiled out (`#if DEBUG`), so dictated text never reaches Console.app or the unified log.
@@ -63,10 +66,11 @@ grep -rE "URLSession|URLRequest|http://|https://" --include='*.swift' Lyra/
 The matches are confined to three files:
 
 - `Lyra/Engine/OpenAISpeechService.swift` — transcription, model listing, AI post-processing and Smart Voice Editing requests, all sent to the Base URLs configured in Settings.
+- `Lyra/Engine/DeepgramStreamingClient.swift` — the live audio WebSocket, opened only when a Deepgram key is present.
 - `Lyra/Engine/ModelManager.swift` — HuggingFace URLs for Whisper and voice-activity model files.
 - `Lyra/Utilities/AppInfo.swift` — static project links shown in the About screen.
 
-To verify the offline claim for Local Whisper mode, select it, disable AI post-processing and Smart Voice Editing, and watch with a firewall such as [Little Snitch](https://www.obdev.at/products/littlesnitch/) or [LuLu](https://objective-see.org/products/lulu.html). In that configuration you will see zero outbound connections during dictation.
+To verify the offline claim for Local Whisper mode, select it, clear the Deepgram key, disable AI post-processing and Smart Voice Editing, and watch with a firewall such as [Little Snitch](https://www.obdev.at/products/littlesnitch/) or [LuLu](https://objective-see.org/products/lulu.html). In that configuration you will see zero outbound connections during dictation.
 
 ## Build from Source
 
