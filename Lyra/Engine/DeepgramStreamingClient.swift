@@ -84,7 +84,14 @@ final class DeepgramStreamingClient: NSObject, @unchecked Sendable {
         var endOfTurnThreshold: Double = 0.7
         /// Hard cap on waiting for a turn to end.
         var endOfTurnTimeoutMs: Int = 5000
+        /// Words to bias recognition towards — the user's vocabulary list.
+        /// Deepgram's equivalent of whisper's initial_prompt.
+        var keyterms: [String] = []
     }
+
+    /// Deepgram caps how many key terms one request may carry; sending the
+    /// user's whole list unbounded would get the connection rejected.
+    static let maxKeyterms = 50
 
     static let defaultBaseURL = "wss://api.deepgram.com/v2/listen"
     static let defaultModel = "flux-general-multi"
@@ -118,6 +125,11 @@ final class DeepgramStreamingClient: NSObject, @unchecked Sendable {
         ]
         if let language = config.language {
             items.append(URLQueryItem(name: "language", value: language))
+        }
+        for term in config.keyterms.prefix(maxKeyterms) {
+            let trimmed = term.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { continue }
+            items.append(URLQueryItem(name: "keyterm", value: trimmed))
         }
         components?.queryItems = items
         return components?.url

@@ -724,6 +724,27 @@ struct TestRunner {
             let pinned = DeepgramStreamingClient.Config(apiKey: "k", model: "flux-general-en", language: "ru")
             let pinnedURL = DeepgramStreamingClient.endpoint(for: pinned)?.absoluteString ?? ""
             assertTest(pinnedURL.contains("language=ru"), "A non-multilingual model gets an explicit language")
+
+            // The vocabulary list reached whisper through initial_prompt but had
+            // no path into the stream, so the Settings section stopped doing
+            // anything once Deepgram became the transcriber.
+            var withTerms = DeepgramStreamingClient.Config(apiKey: "k", model: "flux-general-multi", language: nil)
+            withTerms.keyterms = ["SwiftUI", "OpenRouter", "  ", "Lyra"]
+            let termsURL = DeepgramStreamingClient.endpoint(for: withTerms)?.absoluteString ?? ""
+            assertTest(termsURL.contains("keyterm=SwiftUI"), "Vocabulary terms are sent to the stream")
+            assertTest(termsURL.contains("keyterm=Lyra"), "Every vocabulary term is sent, not just the first")
+            assertTest(
+                termsURL.components(separatedBy: "keyterm=").count - 1 == 3,
+                "Blank vocabulary entries are skipped rather than sent empty"
+            )
+
+            var flooded = DeepgramStreamingClient.Config(apiKey: "k", model: "flux-general-multi", language: nil)
+            flooded.keyterms = (0..<200).map { "term\($0)" }
+            let floodedURL = DeepgramStreamingClient.endpoint(for: flooded)?.absoluteString ?? ""
+            assertTest(
+                floodedURL.components(separatedBy: "keyterm=").count - 1 == DeepgramStreamingClient.maxKeyterms,
+                "The term list is capped so a long vocabulary cannot get the connection rejected"
+            )
         }
 
         // Summary

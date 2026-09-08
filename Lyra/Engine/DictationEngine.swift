@@ -500,6 +500,9 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
     // MARK: - Live preview (display only)
 
     private var streamingSession: DeepgramStreamingClient?
+    /// Set when a stream carrying key terms failed. Kept in memory only: the
+    /// next launch tries again, in case the rejection was transient.
+    private var streamingKeytermsRejected = false
     /// Last streaming failure, surfaced in Settings so a bad key is visible
     /// rather than silently degrading to no preview at all.
     @Published private(set) var streamingPreviewError: String?
@@ -607,7 +610,11 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
             // The multilingual Flux models detect the language themselves;
             // pinning it would break dictating in a second language.
             language: settings.deepgramModel.contains("multi") ? nil : settings.selectedLanguage.rawValue,
-            baseURL: settings.deepgramBaseURL
+            baseURL: settings.deepgramBaseURL,
+            // The vocabulary list reached whisper through initial_prompt but had
+            // no path into the stream at all, so the Settings section silently
+            // stopped doing anything once Deepgram became the transcriber.
+            keyterms: streamingKeytermsRejected ? [] : settings.customTerms
         )
         let client = DeepgramStreamingClient(config: config)
         let shouldDisplay = settings.livePreviewEnabled
@@ -615,9 +622,14 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
             guard shouldDisplay else { return }
             Task { @MainActor [weak self] in self?.previewTranscript = text }
         }
+        let sentKeyterms = !config.keyterms.isEmpty
         client.onError = { [weak self] message in
             Task { @MainActor [weak self] in
-                fputs("[DictationEngine] Streaming preview failed: \(message)\n", stderr)
+                // If the server refuses the connection while key terms were
+                // attached, drop them for the rest of the session rather than
+                // falling back to the slower provider on every dictation.
+                if sentKeyterms { self?.streamingKeytermsRejected = true }
+                fputs("[DictationEngine] Streaming failed: \(message)\n", stderr)
                 self?.streamingPreviewError = message
                 self?.stopPreviewSession()
             }
