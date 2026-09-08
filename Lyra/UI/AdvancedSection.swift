@@ -7,10 +7,10 @@ struct AdvancedSection: View {
     var body: some View {
         VStack(spacing: 14) {
             SettingsCard(colorScheme: colorScheme) {
-                CardHeader("Recording", subtitle: "Fine-tune capture behavior")
+                CardHeader(L10n.tr("Recording"), subtitle: L10n.tr("Fine-tune capture behavior"))
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
-                        Text("Minimum recording duration")
+                        Text(L10n.tr("Minimum recording duration"))
                             .font(.system(size: 13))
                         Spacer()
                         Text(String(format: "%.1fs", settings.minimumRecordingDuration))
@@ -19,14 +19,14 @@ struct AdvancedSection: View {
                             .monospacedDigit()
                     }
                     Slider(value: $settings.minimumRecordingDuration, in: 0.0...1.0, step: 0.1)
-                    Text("Recordings shorter than this are silently discarded.")
+                    Text(L10n.tr("Recordings shorter than this are silently discarded."))
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }
             }
 
             SettingsCard(colorScheme: colorScheme) {
-                CardHeader("Text Insertion", subtitle: "Method used to type text into active applications")
+                CardHeader(L10n.tr("Text Insertion"), subtitle: L10n.tr("Method used to type text into active applications"))
                 Picker("Method", selection: $settings.textInsertionMethod) {
                     ForEach(AppSettings.TextInsertionMethod.allCases) { method in
                         Text(method.displayName).tag(method)
@@ -39,7 +39,7 @@ struct AdvancedSection: View {
                     Image(systemName: "checkmark.seal.fill")
                         .foregroundStyle(.green)
                         .font(.system(size: 13))
-                    Text("Clipboard Paste (Cmd+V) is recommended and works reliably across all web browsers, Electron apps, messengers, and native software without dropped Cyrillic/Unicode characters. Your existing clipboard is automatically restored after pasting.")
+                    Text(L10n.tr("Clipboard Paste (Cmd+V) is recommended and works reliably across all web browsers, Electron apps, messengers, and native software without dropped Cyrillic/Unicode characters. Your existing clipboard is automatically restored after pasting."))
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -48,14 +48,14 @@ struct AdvancedSection: View {
             }
 
             SettingsCard(colorScheme: colorScheme) {
-                CardHeader("Reset")
-                Button("Reset All Settings to Defaults") {
+                CardHeader(L10n.tr("Reset"))
+                Button(L10n.tr("Reset All Settings to Defaults")) {
                     resetSettings()
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.regular)
                 .tint(.red)
-                Text("This does not delete downloaded models or dictation history.")
+                Text(L10n.tr("This does not delete downloaded models or dictation history."))
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

@@ -34,17 +34,17 @@ struct MenuBarView: View {
 
             // Actions
             VStack(spacing: 2) {
-                MenuButton(title: "History...", icon: "clock.arrow.circlepath", shortcut: "Y") {
+                MenuButton(title: L10n.tr("History..."), icon: "clock.arrow.circlepath", shortcut: "Y") {
                     NotificationCenter.default.post(name: NSNotification.Name("OpenSettings"), object: nil)
                     NotificationCenter.default.post(name: NSNotification.Name("ClosePopover"), object: nil)
                     NSApp.activate(ignoringOtherApps: true)
                 }
-                MenuButton(title: "Settings...", icon: "gearshape", shortcut: ",") {
+                MenuButton(title: L10n.tr("Settings..."), icon: "gearshape", shortcut: ",") {
                     NotificationCenter.default.post(name: NSNotification.Name("OpenSettings"), object: nil)
                     NotificationCenter.default.post(name: NSNotification.Name("ClosePopover"), object: nil)
                     NSApp.activate(ignoringOtherApps: true)
                 }
-                MenuButton(title: "Quit Lyra", icon: "power", shortcut: "Q") {
+                MenuButton(title: L10n.tr("Quit Lyra"), icon: "power", shortcut: "Q") {
                     NSApplication.shared.terminate(nil)
                 }
             }
@@ -164,7 +164,7 @@ struct MenuBarView: View {
 
     private var transcriptionSection: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Last transcription")
+            Text(L10n.tr("Last transcription"))
                 .font(.system(size: 9, weight: .semibold))
                 .textCase(.uppercase)
                 .foregroundStyle(.tertiary)
@@ -197,19 +197,15 @@ struct MenuBarView: View {
         switch engine.state {
         case .idle:
             if !engine.isReadyToRecord {
-                return "Loading..."
+                return L10n.tr("Loading...")
             }
-            if settings.hotkeyMode == .toggle {
-                return "Ready — press \(hotkeyLabel) to dictate"
-            } else {
-                return "Ready — hold \(hotkeyLabel) to dictate"
-            }
+            return String(format: L10n.tr("Ready — hold %@ to dictate"), hotkeyLabel)
         case .recording:
-            return engine.isHandsFreeActive ? "Listening (Hands-Free)..." : "Listening..."
+            return L10n.tr("Listening...")
         case .processing:
-            return engine.isFallbackActive ? "Local Fallback..." : "Transcribing..."
+            return L10n.tr("Transcribing...")
         case .typing:
-            return "Typing..."
+            return L10n.tr("Typing...")
         }
     }
 

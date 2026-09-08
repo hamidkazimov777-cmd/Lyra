@@ -7,12 +7,12 @@ struct AppearanceSection: View {
     var body: some View {
         VStack(spacing: 14) {
             SettingsCard(colorScheme: colorScheme) {
-                CardHeader("Floating Overlay (Dynamic Island)", subtitle: "Apple Intelligence and Aqua Voice inspired indicator")
+                CardHeader(L10n.tr("Floating Overlay (Dynamic Island)"), subtitle: L10n.tr("Apple Intelligence and Aqua Voice inspired indicator"))
 
-                Toggle("Always show compact pill in idle state", isOn: $settings.isFloatingWidgetAlwaysVisible)
+                Toggle(L10n.tr("Always show compact pill in idle state"), isOn: $settings.isFloatingWidgetAlwaysVisible)
                     .font(.system(size: 13))
 
-                Text("A subtle capsule remains on your screen showing Lyra's status. It expands organically with live audio waves when you start speaking.")
+                Text(L10n.tr("A subtle capsule remains on your screen showing Lyra's status. It expands organically with live audio waves when you start speaking."))
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -20,17 +20,17 @@ struct AppearanceSection: View {
                 Divider()
                     .padding(.vertical, 4)
 
-                Toggle("Show expanded overlay during recording", isOn: $settings.showRecordingHUD)
+                Toggle(L10n.tr("Show expanded overlay during recording"), isOn: $settings.showRecordingHUD)
                     .font(.system(size: 13))
 
-                Text("Shows real-time voice waveform and live transcript as you dictate.")
+                Text(L10n.tr("Shows real-time voice waveform and live transcript as you dictate."))
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
             SettingsCard(colorScheme: colorScheme) {
-                CardHeader("Theme", subtitle: "Lyra seamlessly adopts native macOS styling")
+                CardHeader(L10n.tr("Theme"), subtitle: L10n.tr("Lyra seamlessly adopts native macOS styling"))
                 HStack(spacing: 12) {
                     RoundedRectangle(cornerRadius: 10)
                         .fill(
@@ -54,9 +54,9 @@ struct AppearanceSection: View {
                         )
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("System Dynamic")
+                        Text(L10n.tr("System Dynamic"))
                             .font(.system(size: 13, weight: .semibold))
-                        Text("Adapts automatically between Light, Dark, and High Contrast.")
+                        Text(L10n.tr("Adapts automatically between Light, Dark, and High Contrast."))
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)

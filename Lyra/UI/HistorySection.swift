@@ -12,7 +12,7 @@ struct HistorySection: View {
                     Image(systemName: "magnifyingglass")
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
-                    TextField("Search history...", text: $store.searchQuery)
+                    TextField(L10n.tr("Search history..."), text: $store.searchQuery)
                         .textFieldStyle(.plain)
                         .font(.system(size: 13))
                     if !store.searchQuery.isEmpty {
@@ -30,12 +30,12 @@ struct HistorySection: View {
 
             // Toolbar
             HStack {
-                Text("\(store.items.count) dictations")
+                Text("\(store.items.count) \(L10n.tr("dictations"))")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                 Spacer()
                 if !store.items.isEmpty {
-                    Button("Clear All") {
+                    Button(L10n.tr("Clear All")) {
                         store.clearAll()
                     }
                     .buttonStyle(.bordered)
@@ -63,10 +63,10 @@ struct HistorySection: View {
             Image(systemName: "clock.arrow.circlepath")
                 .font(.system(size: 32))
                 .foregroundStyle(.secondary.opacity(0.6))
-            Text(store.searchQuery.isEmpty ? "No dictations yet" : "No matches")
+            Text(store.searchQuery.isEmpty ? L10n.tr("No dictations yet") : L10n.tr("No matches"))
                 .font(.system(size: 13, weight: .medium))
             if store.searchQuery.isEmpty {
-                Text("Your transcriptions will appear here after you dictate.")
+                Text(L10n.tr("Your transcriptions will appear here after you dictate."))
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -117,7 +117,7 @@ private struct HistoryRow: View {
                             .font(.system(size: 12))
                     }
                     .buttonStyle(.plain)
-                    .help("Copy")
+                    .help(L10n.tr("Copy"))
 
                     Button {
                         store.delete(item: item)
@@ -127,7 +127,7 @@ private struct HistoryRow: View {
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(.red)
-                    .help("Delete")
+                    .help(L10n.tr("Delete"))
                 }
                 .font(.system(size: 10))
                 .foregroundStyle(.secondary)

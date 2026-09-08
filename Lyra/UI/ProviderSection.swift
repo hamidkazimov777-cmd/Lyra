@@ -18,7 +18,7 @@ struct ProviderSection: View {
         VStack(spacing: 16) {
             // Main Mode Selection
             SettingsCard(colorScheme: colorScheme) {
-                CardHeader("Transcription Mode", subtitle: "Choose between Cloud/Custom API or 100% offline Local Whisper")
+                CardHeader(L10n.tr("Transcription Mode"), subtitle: L10n.tr("Choose between Cloud/Custom API or 100% offline Local Whisper"))
 
                 Picker("Mode", selection: $settings.transcriptionProviderType) {
                     ForEach(TranscriptionProviderType.allCases) { mode in
@@ -29,12 +29,12 @@ struct ProviderSection: View {
                 .font(.system(size: 13))
 
                 if settings.transcriptionProviderType == .api {
-                    Text("API mode provides the highest recognition accuracy and speed, especially for Russian and specialized technical vocabulary.")
+                    Text(L10n.tr("API mode provides the highest recognition accuracy and speed, especially for Russian and specialized technical vocabulary."))
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 } else {
-                    Text("Local Whisper processes speech entirely on your Mac using your GPU/CPU without sending any data over the internet.")
+                    Text(L10n.tr("Local Whisper processes speech entirely on your Mac using your GPU/CPU without sending any data over the internet."))
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -57,7 +57,7 @@ struct ProviderSection: View {
     private var apiConfigurationCards: some View {
         VStack(spacing: 14) {
             SettingsCard(colorScheme: colorScheme) {
-                CardHeader("Provider Preset", subtitle: "Select a pre-configured provider or enter custom settings")
+                CardHeader(L10n.tr("Provider Preset"), subtitle: L10n.tr("Select a pre-configured provider or enter custom settings"))
 
                 Picker("Preset", selection: Binding(
                     get: { settings.apiPreset },
@@ -245,16 +245,16 @@ struct ProviderSection: View {
 
     private var fallbackCard: some View {
         SettingsCard(colorScheme: colorScheme) {
-            CardHeader("Offline Safety Net (Automatic Fallback)", subtitle: "Keep dictation working even if the internet goes down")
+            CardHeader(L10n.tr("Offline Fallback"), subtitle: L10n.tr("Use Local Whisper if API is unavailable"))
 
-            Toggle("Fallback to Local Whisper on network failure", isOn: $settings.enableLocalFallback)
+            Toggle(L10n.tr("Offline Fallback"), isOn: $settings.enableLocalFallback)
                 .font(.system(size: 13))
 
             HStack(spacing: 8) {
                 Image(systemName: "shield.checkered")
                     .font(.system(size: 14))
                     .foregroundStyle(.green)
-                Text("If an API request fails, times out, or network disconnects, Lyra automatically falls back to your local Whisper model.")
+                Text(L10n.tr("Automatically falls back to local Whisper models if network is down or API returns an error."))
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

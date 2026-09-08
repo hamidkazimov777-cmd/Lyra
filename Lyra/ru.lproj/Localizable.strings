@@ -1,16 +1,19 @@
 /* Settings sidebar */
+"Settings" = "Настройки";
 "General" = "Общие";
-"Speech" = "Речь";
-"Model" = "Модель";
-"Vocabulary" = "Словарь";
-"Hotkeys" = "Горячие клавиши";
+"Dictation" = "Диктовка";
+"Provider" = "Провайдер";
 "Appearance" = "Внешний вид";
+"Hotkeys" = "Горячие клавиши";
 "History" = "История";
 "Advanced" = "Расширенные";
-"Permissions" = "Разрешения";
 "About" = "О приложении";
+"Ready" = "Готово";
+"Loading..." = "Загрузка...";
 
 /* General section */
+"Interface Language" = "Язык интерфейса";
+"Choose application display language" = "Выберите язык отображения приложения";
 "Microphone" = "Микрофон";
 "Audio input device for recording" = "Устройство ввода для записи";
 "Input device" = "Устройство ввода";
@@ -19,48 +22,38 @@
 "Sound feedback" = "Звуковая обратная связь";
 "Launch at login" = "Запускать при входе";
 
-/* Hotkeys section */
-"Activation Key" = "Клавиша активации";
-"Hold this key to record" = "Удерживайте эту клавишу для записи";
-"Mode" = "Режим";
-"How the activation key behaves" = "Как ведёт себя клавиша активации";
-"Push-to-talk" = "Нажми и говори";
-"Toggle" = "Переключатель";
-"Hold duration to start / stop" = "Длительность удержания для старта / стопа";
-"Hold the key to record, release to transcribe — instant start and stop." = "Удерживайте клавишу для записи, отпустите для расшифровки — мгновенный старт и стоп.";
-"In toggle mode you must hold the key for this long to start or stop. Choose Push-to-talk above for instant response." = "В режиме переключателя нужно удерживать клавишу столько времени для старта или остановки. Выберите «Нажми и говори» выше для мгновенной реакции.";
-
-/* Speech section */
+/* Dictation & Speech section */
 "Language" = "Язык";
+"Dictation Language" = "Язык диктовки";
 "Dictation language and matching Whisper models" = "Язык диктовки и подходящие модели Whisper";
 "English-only models are hidden when a multilingual language is selected, and vice versa." = "Англоязычные модели скрыты при выборе многоязычного языка, и наоборот.";
-"Transcription" = "Расшифровка";
-"Post-processing applied after Whisper" = "Постобработка после Whisper";
+"Transcription & Smart Voice Features" = "Распознавание и умные функции";
+"Live streaming and intelligent voice manipulation" = "Интеллектуальная обработка голоса и форматирование";
 "Auto-correct grammar & formatting" = "Автоисправление грамматики и форматирования";
 "Convert number words to digits" = "Преобразовывать числительные в цифры";
-"Live Dictation" = "Живая диктовка";
-"Type each phrase when you pause" = "Печатать каждую фразу при паузе";
-"Live dictation" = "Живая диктовка";
-"Types each phrase when you pause, instead of everything at the end." = "Печатает каждую фразу при паузе, а не всё в конце.";
-"Types each phrase when you pause. Works best with small or base models." = "Печатает каждую фразу при паузе. Лучше всего работает с small или base моделями.";
-"Downloading the voice-activity model — live dictation starts working when it finishes." = "Загрузка модели определения голоса — живая диктовка заработает после завершения.";
-"A model download failed — retry from the Models section. Live dictation stays off until the voice-activity model is downloaded." = "Ошибка загрузки модели — повторите в разделе Модели. Живая диктовка отключена, пока не загружена модель определения голоса.";
-"Requires the voice-activity model (Models section). Live dictation is off until it's downloaded." = "Требуется модель определения голоса (раздел Модели). Живая диктовка отключена до загрузки.";
-
-/* Model section */
-"Recommended (Quantized)" = "Рекомендуемые (квантованные)";
-"Smaller, faster, near-identical accuracy" = "Меньше, быстрее, почти та же точность";
-"Voice Activity Detection" = "Определение голосовой активности";
-"Trims silence for faster inference (2 MB)" = "Обрезает тишину для ускорения (2 МБ)";
-"Silero VAD" = "Silero VAD";
-"Auto-trims silence before transcription" = "Автоматически обрезает тишину перед расшифровкой";
-"Full Precision Models" = "Модели полной точности";
-"Q5" = "Q5";
-"ACTIVE" = "АКТИВНА";
-"Download" = "Загрузить";
-"Activate" = "Активировать";
+"Smart Voice Editing (Transform Selected Text)" = "Умное редактирование (изменение выделенного)";
+"When text is highlighted in any app, dictation acts as a voice command (rewrite, translate, edit) applied directly to your selection." = "Если текст выделен в любой программе, диктовка работает как голосовая команда (переписать, перевести, отредактировать) прямо над выделенным.";
+"AI Text Post-Processing" = "AI-постобработка текста";
+"Refines dictation using an LLM via OpenRouter" = "Улучшение диктовки нейросетью через OpenRouter";
+"Enable AI Post-Processing" = "Включить AI-постобработку";
+"Popular Fast Models" = "Популярные быстрые модели";
+"Custom OpenRouter Model ID" = "ID модели OpenRouter";
+"Custom Model ID (e.g. google/gemini-2.5-flash)" = "ID модели (напр. google/gemini-2.5-flash)";
+"OpenRouter API Key" = "API ключ OpenRouter";
+"API Key" = "API ключ";
+"Paste your OpenRouter API key" = "Вставьте ваш API ключ OpenRouter";
+"OpenRouter API Key is stored securely in your macOS Keychain." = "API ключ надёжно сохраняется в Связке ключей macOS Keychain.";
+"Test Connection" = "Проверить подключение";
+"Testing..." = "Проверка...";
+"Connection successful!" = "Подключение успешно!";
+"Connection failed" = "Ошибка подключения";
+"Model System Prompt" = "Системный промпт модели";
+"Customize the system prompt to adjust style, tone, or formatting." = "Настройте системный промпт для изменения стиля, тона или форматирования.";
+"Reset to Default" = "Сбросить по умолчанию";
+"Latency:" = "Задержка:";
 
 /* Vocabulary section */
+"Vocabulary" = "Словарь";
 "Names & Terms" = "Имена и термины";
 "Add names of people, places, and terms you use often" = "Добавьте имена людей, мест и часто используемые термины";
 "Developer Vocabulary" = "Словарь разработчика";
@@ -71,90 +64,101 @@
 "Add" = "Добавить";
 "Clear All" = "Очистить всё";
 
+/* Model section */
+"Recommended (Quantized)" = "Рекомендуемые (квантованные)";
+"Smaller, faster, near-identical accuracy" = "Меньше, быстрее, почти та же точность";
+"Voice Activity Detection" = "Определение голосовой активности";
+"Trims silence for faster inference (2 MB)" = "Обрезает тишину для ускорения (2 МБ)";
+"Silero VAD" = "Silero VAD";
+"Auto-trims silence before transcription" = "Автоматически обрезает тишину перед расшифровкой";
+"Full Precision Models" = "Модели полной точности";
+"ACTIVE" = "АКТИВНА";
+"Download" = "Загрузить";
+"Activate" = "Активировать";
+"Downloading…" = "Загрузка…";
+
+/* Provider section */
+"Transcription Mode" = "Режим транскрипции";
+"Choose between Cloud/Custom API or 100% offline Local Whisper" = "Выберите Cloud API или полностью офлайн Local Whisper";
+"API mode provides the highest recognition accuracy and speed, especially for Russian and specialized technical vocabulary." = "Режим API обеспечивает максимальную точность и скорость, особенно для русского языка и сложной терминологии.";
+"Local Whisper processes speech entirely on your Mac using your GPU/CPU without sending any data over the internet." = "Локальный Whisper обрабатывает речь прямо на Mac с помощью GPU/CPU без отправки данных в интернет.";
+"Provider Preset" = "Пресет провайдера";
+"Select a pre-configured provider or enter custom settings" = "Выберите готового провайдера или задайте свои параметры";
+"API Endpoint & Authentication" = "Эндпоинт API и авторизация";
+"Enter your API key and connection details" = "Введите ваш API ключ и параметры подключения";
+"Base URL" = "Базовый URL";
+"Model Name" = "Имя модели";
+"Test API Connection" = "Проверить API";
+"Offline Fallback" = "Офлайн-резерв";
+"Use Local Whisper if API is unavailable" = "Использовать локальный Whisper при недоступности API";
+"Automatically falls back to local Whisper models if network is down or API returns an error." = "Автоматически переключается на локальный Whisper, если сеть недоступна или API возвращает ошибку.";
+
 /* Appearance section */
-"Recording HUD" = "HUD записи";
-"Show floating recording HUD" = "Показывать плавающий HUD записи";
-"A small overlay appears near the top of the screen while you dictate." = "Небольшая панель появляется вверху экрана во время диктовки.";
+"Floating Overlay (Dynamic Island)" = "Плавающий оверлей (Dynamic Island)";
+"Apple Intelligence and Aqua Voice inspired indicator" = "Индикатор в стиле Apple Intelligence и Aqua Voice";
+"Always show compact pill in idle state" = "Всегда показывать капсулу в режиме ожидания";
+"A subtle capsule remains on your screen showing Lyra's status. It expands organically with live audio waves when you start speaking." = "Аккуратная капсула на экране показывает статус Lyra и плавно раскрывается с живыми аудиоволнами при диктовке.";
+"Show expanded overlay during recording" = "Показывать развёрнутый оверлей при записи";
+"Shows real-time voice waveform and live transcript as you dictate." = "Отображает анимацию звуковой волны в реальном времени при диктовке.";
 "Theme" = "Тема";
-"Lyra follows the system appearance" = "Lyra следует системной теме";
-"System" = "Системная";
-"Light or dark mode is controlled by macOS System Settings." = "Светлая или тёмная тема управляется в Системных настройках macOS.";
+"Lyra seamlessly adopts native macOS styling" = "Lyra органично адаптируется под интерфейс macOS";
+"System Dynamic" = "Системная динамическая";
+"Adapts automatically between Light, Dark, and High Contrast." = "Автоматически переключается между светлой, тёмной и контрастной темами.";
+
+/* Hotkeys section */
+"Activation Key" = "Клавиша активации";
+"Global shortcut to trigger dictation anywhere" = "Глобальная клавиша для запуска диктовки везде";
+"Default is Left Option (⌥). You can change it to Right Option, Fn, Control, or any key." = "По умолчанию — левый Option (⌥). Можно изменить на правый Option, Fn, Control или любую клавишу.";
+"Dictation Mode" = "Режим диктовки";
+"Choose how the hotkey activates dictation" = "Выберите, как клавиша запускает запись";
+"Push-to-Talk" = "Нажми и говори";
+"Hands-Free (Toggle)" = "Свободные руки (Переключатель)";
+"Hold & Release" = "Удерживать и отпустить";
+"Hold the key while speaking. When you release it, dictation stops and text is typed at your cursor immediately." = "Удерживайте клавишу, пока говорите. Когда отпустите, диктовка завершится и текст сразу напечатается у курсора.";
+"Click to Start, Click to Stop" = "Нажать для старта, нажать для остановки";
+"Press the hotkey once to start recording. Speak freely with your hands off the keyboard. Press the key a second time to stop and insert text." = "Нажмите клавишу один раз для начала записи. Говорите свободно. Нажмите повторно, чтобы остановить и вставить текст.";
 
 /* History section */
 "Search history..." = "Поиск по истории...";
+"dictations" = "диктовок";
 "No dictations yet" = "Пока нет диктовок";
 "No matches" = "Нет совпадений";
 "Your transcriptions will appear here after you dictate." = "Ваши расшифровки появятся здесь после диктовки.";
-"dictations" = "диктовок";
-"Clear All" = "Очистить всё";
+"Copy" = "Копировать";
+"Delete" = "Удалить";
 
 /* Advanced section */
 "Recording" = "Запись";
-"Fine-tune capture behavior" = "Тонкая настройка захвата";
+"Fine-tune capture behavior" = "Тонкая настройка захвата аудио";
 "Minimum recording duration" = "Минимальная длительность записи";
 "Recordings shorter than this are silently discarded." = "Записи короче этого времени отбрасываются.";
+"Text Insertion" = "Вставка текста";
+"Method used to type text into active applications" = "Способ ввода текста в активные программы";
+"Clipboard Paste (Cmd+V) is recommended and works reliably across all web browsers, Electron apps, messengers, and native software without dropped Cyrillic/Unicode characters. Your existing clipboard is automatically restored after pasting." = "Вставка через буфер (Cmd+V) рекомендуется и надёжно работает во всех браузерах, Electron-приложениях, мессенджерах и нативных программах без потерь символов. Содержимое буфера автоматически восстанавливается после вставки.";
 "Reset All Settings to Defaults" = "Сбросить все настройки по умолчанию";
-"This does not delete downloaded models or dictation history." = "Это не удаляет загруженные модели и историю диктовки.";
-
-/* Permissions section */
-"Grant Permissions" = "Предоставить разрешения";
-"Lyra needs two permissions to work." = "Lyra нужно два разрешения для работы.";
-"Microphone" = "Микрофон";
-"Capture your voice for transcription." = "Захват вашего голоса для расшифровки.";
-"Grant Access" = "Предоставить доступ";
-"Accessibility" = "Универсальный доступ";
-"Global hotkey and typing text at your cursor. macOS only lets you enable this manually in System Settings — the button opens the right pane." = "Глобальная горячая клавиша и ввод текста в позицию курсора. macOS позволяет включить это только вручную в Системных настройках — кнопка открывает нужную панель.";
-"Open Settings" = "Открыть настройки";
-"You can grant these later in Settings — they're just needed before you can dictate." = "Вы можете предоставить их позже в Настройках — они нужны перед началом диктовки.";
-"Refresh Permissions" = "Обновить разрешения";
+"This does not delete downloaded models or dictation history." = "Это не удаляет загруженные модели и историю диктовок.";
 
 /* About section */
-"Local, private voice-to-text for macOS" = "Локальный, приватный голосовой ввод для macOS";
-"Version" = "Версия";
-"Whisper" = "Whisper";
-"OpenAI / ggerganov/whisper.cpp" = "OpenAI / ggerganov/whisper.cpp";
+"Next-generation voice dictation for macOS" = "Голосовой ввод нового поколения для macOS";
+"Concept" = "Концепция";
+"Lyra Constellation & AI Voice" = "Созвездие Лиры и умный голос";
+"Architecture" = "Архитектура";
+"Hybrid Cloud API + Metal Whisper Fallback" = "Гибридный Cloud API + локальный Metal Whisper";
+"Primary Language" = "Основной язык";
+"Русский язык (Priority #1)" = "Русский язык (Приоритет №1)";
 "License" = "Лицензия";
-"MIT" = "MIT";
-"Support" = "Поддержка";
-"github.com/lyra-voice/lyra" = "github.com/lyra-voice/lyra";
-"All rights reserved." = "Все права защищены.";
+"Designed with Apple Intelligence aesthetics." = "Создано с эстетикой Apple Intelligence.";
 
 /* Menu bar */
 "History..." = "История...";
 "Settings..." = "Настройки...";
 "Quit Lyra" = "Выйти из Lyra";
 "Last transcription" = "Последняя расшифровка";
-"Ready" = "Готово";
 "Listening..." = "Слушаю...";
 "Transcribing..." = "Расшифровываю...";
 "Typing..." = "Печатаю...";
 "Ready — hold %@ to dictate" = "Готово — удерживайте %@ для диктовки";
 "Loading model..." = "Загрузка модели...";
-"No model found. Open Settings to download a model." = "Модель не найдена. Откройте Настройки, чтобы загрузить модель.";
+"No model found. Open Settings to download a model." = "Модель не найдена. Откройте Настройки для загрузки модели.";
 "Microphone access needed" = "Нужен доступ к микрофону";
 "Accessibility access needed" = "Нужен доступ к универсальному доступу";
-"Accessibility access needed — text cannot be typed without it" = "Нужен доступ к универсальному доступу — без него текст не вставляется";
-"Accessibility access is required to type text at the cursor. Enable Lyra in System Settings → Privacy & Security → Accessibility." = "Для ввода текста в позицию курсора требуется доступ к универсальному доступу. Включите Lyra в Системных настройках → Конфиденциальность и безопасность → Универсальный доступ.";
-"Transcription cancelled." = "Расшифровка отменена.";
-"Reached the %@-minute recording limit. Transcribing what was captured." = "Достигнут лимит записи %@ минут. Расшифровываю захваченное.";
-"Audio input changed. Recording stopped." = "Аудиовход изменился. Запись остановлена.";
-
-/* Onboarding */
-"Welcome to Lyra" = "Добро пожаловать в Lyra";
-"Local, private voice-to-text powered by Whisper AI.\nHold a key to speak, release to type — nothing leaves your Mac." = "Локальный, приватный голосовой ввод на базе Whisper AI.\nУдерживайте клавишу, говорите, отпустите — текст появится мгновенно. Ничего не покидает ваш Mac.";
-"Get Started" = "Начать";
-"Choose Language" = "Выберите язык";
-"Select the language you'll dictate in." = "Выберите язык, на котором будете диктовать.";
-"Continue" = "Продолжить";
-"Grant Permissions" = "Предоставить разрешения";
-"Lyra needs two permissions to work." = "Lyra нужно два разрешения для работы.";
-"Download a Model" = "Загрузить модель";
-"This runs entirely offline once downloaded." = "После загрузки работает полностью офлайн.";
-"RECOMMENDED" = "РЕКОМЕНДУЕМ";
-"Ready — %@, %@ accuracy" = "Готово — %@, точность %@";
-"Downloading… %d%%" = "Загрузка… %d%%";
-"You're all set" = "Всё готово";
-"Hold your hotkey and start speaking. Fine-tune everything — hotkey, model, vocabulary — anytime from Settings in the menu bar." = "Удерживайте горячую клавишу и начинайте говорить. Настройте всё — горячую клавишу, модель, словарь — в любое время в меню.";
-"Start Dictating" = "Начать диктовку";
-"Skip setup" = "Пропустить";
-"Back" = "Назад";

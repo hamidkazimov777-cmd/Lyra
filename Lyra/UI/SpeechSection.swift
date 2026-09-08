@@ -14,8 +14,20 @@ struct SpeechSection: View {
     var body: some View {
         VStack(spacing: 14) {
             SettingsCard(colorScheme: colorScheme) {
-                CardHeader("Language", subtitle: "Dictation language and matching Whisper models")
-                Picker("Language", selection: languageBinding) {
+                CardHeader(L10n.tr("Interface Language"), subtitle: L10n.tr("Choose application display language"))
+                Picker(L10n.tr("Interface Language"), selection: $settings.interfaceLanguage) {
+                    ForEach(AppLanguage.allCases) { lang in
+                        Text(lang.displayName).tag(lang)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .font(.system(size: 13))
+
+                Divider()
+                    .padding(.vertical, 4)
+
+                CardHeader(L10n.tr("Language"), subtitle: L10n.tr("Dictation language and matching Whisper models"))
+                Picker(L10n.tr("Dictation Language"), selection: languageBinding) {
                     ForEach(Language.allCases) { language in
                         Text(language.displayName).tag(language)
                     }
@@ -23,35 +35,36 @@ struct SpeechSection: View {
                 .pickerStyle(.segmented)
                 .font(.system(size: 13))
 
-                Text("English-only models are hidden when a multilingual language is selected, and vice versa.")
+                Text(L10n.tr("English-only models are hidden when a multilingual language is selected, and vice versa."))
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
             SettingsCard(colorScheme: colorScheme) {
-                CardHeader("Transcription & Smart Voice Features", subtitle: "Live streaming and intelligent voice manipulation")
-                Toggle("Auto-correct grammar & formatting", isOn: $settings.grammarCorrectionEnabled)
+                CardHeader(L10n.tr("Transcription & Smart Voice Features"), subtitle: L10n.tr("Live streaming and intelligent voice manipulation"))
+                Toggle(L10n.tr("Auto-correct grammar & formatting"), isOn: $settings.grammarCorrectionEnabled)
                     .font(.system(size: 13))
-                Toggle("Convert number words to digits", isOn: $settings.numberConversionEnabled)
+                Toggle(L10n.tr("Convert number words to digits"), isOn: $settings.numberConversionEnabled)
                     .font(.system(size: 13))
                 Divider()
-                Toggle("Smart Voice Editing (Transform Selected Text)", isOn: $settings.smartVoiceEditingEnabled)
+                Toggle(L10n.tr("Smart Voice Editing (Transform Selected Text)"), isOn: $settings.smartVoiceEditingEnabled)
                     .font(.system(size: 13))
-                Text("When text is highlighted in any app, dictation acts as a voice command (rewrite, translate, edit) applied directly to your selection.")
+                Text(L10n.tr("When text is highlighted in any app, dictation acts as a voice command (rewrite, translate, edit) applied directly to your selection."))
                     .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
             }
 
             SettingsCard(colorScheme: colorScheme) {
-                CardHeader("AI Text Post-Processing", subtitle: "Refines dictation using an LLM via OpenRouter")
-                Toggle("Enable AI Post-Processing", isOn: $settings.aiPostProcessingEnabled)
+                CardHeader(L10n.tr("AI Text Post-Processing"), subtitle: L10n.tr("Refines dictation using an LLM via OpenRouter"))
+                Toggle(L10n.tr("Enable AI Post-Processing"), isOn: $settings.aiPostProcessingEnabled)
                     .font(.system(size: 13))
 
                 if settings.aiPostProcessingEnabled {
                     VStack(alignment: .leading, spacing: 10) {
                         // 1. Fast Popular Presets
                         VStack(alignment: .leading, spacing: 5) {
-                            Text("Popular Fast Models")
+                            Text(L10n.tr("Popular Fast Models"))
                                 .font(.system(size: 11, weight: .medium))
                                 .foregroundStyle(.secondary)
 
@@ -172,10 +185,10 @@ struct SpeechSection: View {
                                             ProgressView()
                                                 .scaleEffect(0.6)
                                                 .frame(width: 12, height: 12)
-                                            Text("Testing Model...")
+                                            Text(L10n.tr("Testing..."))
                                         } else {
                                             Image(systemName: "bolt.badge.checkmark.fill")
-                                            Text("Test Connection & Response")
+                                            Text(L10n.tr("Test Connection"))
                                         }
                                     }
                                     .font(.system(size: 11, weight: .medium))
@@ -223,8 +236,8 @@ struct SpeechSection: View {
             }
 
             SettingsCard(colorScheme: colorScheme) {
-                CardHeader("Live Dictation", subtitle: "Type each phrase when you pause")
-                Toggle("Live dictation", isOn: Binding(
+                CardHeader(L10n.tr("Live Dictation"), subtitle: L10n.tr("Type each phrase when you pause"))
+                Toggle(L10n.tr("Live dictation"), isOn: Binding(
                     get: { settings.liveDictationEnabled },
                     set: { enabled in
                         settings.liveDictationEnabled = enabled

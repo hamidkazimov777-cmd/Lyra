@@ -1,0 +1,164 @@
+/* Settings sidebar */
+"Settings" = "Configuración";
+"General" = "General";
+"Dictation" = "Dictado";
+"Provider" = "Proveedor";
+"Appearance" = "Apariencia";
+"Hotkeys" = "Atajos";
+"History" = "Historial";
+"Advanced" = "Avanzado";
+"About" = "Acerca de";
+"Ready" = "Listo";
+"Loading..." = "Cargando...";
+
+/* General section */
+"Interface Language" = "Idioma de la interfaz";
+"Choose application display language" = "Elija el idioma de visualización de la aplicación";
+"Microphone" = "Micrófono";
+"Audio input device for recording" = "Dispositivo de entrada de audio para grabación";
+"Input device" = "Dispositivo de entrada";
+"System Default" = "Predeterminado del sistema";
+"Preferences" = "Preferencias";
+"Sound feedback" = "Respuesta de sonido";
+"Launch at login" = "Iniciar al iniciar sesión";
+
+/* Dictation & Speech section */
+"Language" = "Idioma";
+"Dictation Language" = "Idioma de dictado";
+"Dictation language and matching Whisper models" = "Idioma de dictado y modelos Whisper compatibles";
+"English-only models are hidden when a multilingual language is selected, and vice versa." = "Los modelos exclusivos en inglés se ocultan cuando se selecciona un idioma multilingüe, y viceversa.";
+"Transcription & Smart Voice Features" = "Transcripción y funciones de voz inteligentes";
+"Live streaming and intelligent voice manipulation" = "Manipulación inteligente de la voz y formato";
+"Auto-correct grammar & formatting" = "Corrección automática de gramática y formato";
+"Convert number words to digits" = "Convertir palabras numéricas a dígitos";
+"Smart Voice Editing (Transform Selected Text)" = "Edición de voz inteligente (Transformar texto)";
+"When text is highlighted in any app, dictation acts as a voice command (rewrite, translate, edit) applied directly to your selection." = "Cuando hay texto seleccionado en cualquier app, el dictado actúa como un comando de voz (reescribir, traducir, editar) aplicado directamente.";
+"AI Text Post-Processing" = "Poscapacitación de texto con IA";
+"Refines dictation using an LLM via OpenRouter" = "Refina el dictado mediante un LLM a través de OpenRouter";
+"Enable AI Post-Processing" = "Habilitar posprocesamiento con IA";
+"Popular Fast Models" = "Modelos rápidos populares";
+"Custom OpenRouter Model ID" = "ID de modelo OpenRouter";
+"Custom Model ID (e.g. google/gemini-2.5-flash)" = "ID del modelo (ej. google/gemini-2.5-flash)";
+"OpenRouter API Key" = "Clave de API de OpenRouter";
+"API Key" = "Clave de API";
+"Paste your OpenRouter API key" = "Pegue su clave de API de OpenRouter";
+"OpenRouter API Key is stored securely in your macOS Keychain." = "La clave de API se almacena de forma segura en macOS Keychain.";
+"Test Connection" = "Probar conexión";
+"Testing..." = "Probando...";
+"Connection successful!" = "¡Conexión exitosa!";
+"Connection failed" = "Error de conexión";
+"Model System Prompt" = "Prompt del sistema del modelo";
+"Customize the system prompt to adjust style, tone, or formatting." = "Personalice el prompt del sistema para ajustar el estilo, tono o formato.";
+"Reset to Default" = "Restablecer por defecto";
+"Latency:" = "Latencia:";
+
+/* Vocabulary section */
+"Vocabulary" = "Vocabulario";
+"Names & Terms" = "Nombres y términos";
+"Add names of people, places, and terms you use often" = "Añada nombres de personas, lugares y términos que use a menudo";
+"Developer Vocabulary" = "Vocabulario de desarrollador";
+"Bias Whisper toward recognizing these terms" = "Orienta a Whisper hacia el reconocimiento de estos términos";
+"Add project-specific terms for better recognition" = "Añada términos específicos de su proyecto para un mejor reconocimiento";
+"Reset" = "Restablecer";
+"Type a name or term..." = "Escriba un nombre o término...";
+"Add" = "Añadir";
+"Clear All" = "Borrar todo";
+
+/* Model section */
+"Recommended (Quantized)" = "Recomendados (cuantizados)";
+"Smaller, faster, near-identical accuracy" = "Más pequeños, rápidos, precisión casi idéntica";
+"Voice Activity Detection" = "Detección de actividad vocal";
+"Trims silence for faster inference (2 MB)" = "Recorta el silencio para una inferencia más rápida (2 MB)";
+"Silero VAD" = "Silero VAD";
+"Auto-trims silence before transcription" = "Recorta automáticamente el silencio antes de transcribir";
+"Full Precision Models" = "Modelos de precisión completa";
+"ACTIVE" = "ACTIVA";
+"Download" = "Descargar";
+"Activate" = "Activar";
+"Downloading…" = "Descargando…";
+
+/* Provider section */
+"Transcription Mode" = "Modo de transcripción";
+"Choose between Cloud/Custom API or 100% offline Local Whisper" = "Elija entre Cloud API o Local Whisper 100% sin conexión";
+"API mode provides the highest recognition accuracy and speed, especially for Russian and specialized technical vocabulary." = "El modo API proporciona la mayor precisión y velocidad, especialmente para vocabulario técnico especializado.";
+"Local Whisper processes speech entirely on your Mac using your GPU/CPU without sending any data over the internet." = "Local Whisper procesa la voz íntegramente en su Mac utilizando su GPU/CPU sin enviar datos a Internet.";
+"Provider Preset" = "Preajuste del proveedor";
+"Select a pre-configured provider or enter custom settings" = "Seleccione un proveedor preconfigurado o ingrese ajustes personalizados";
+"API Endpoint & Authentication" = "Punto final de API y autenticación";
+"Enter your API key and connection details" = "Ingrese su clave de API y detalles de conexión";
+"Base URL" = "URL base";
+"Model Name" = "Nombre del modelo";
+"Test API Connection" = "Probar API";
+"Offline Fallback" = "Respaldo sin conexión";
+"Use Local Whisper if API is unavailable" = "Usar Whisper local si la API no está disponible";
+"Automatically falls back to local Whisper models if network is down or API returns an error." = "Cambia automáticamente a los modelos locales de Whisper si se cae la red o la API falla.";
+
+/* Appearance section */
+"Floating Overlay (Dynamic Island)" = "Superposición flotante (Dynamic Island)";
+"Apple Intelligence and Aqua Voice inspired indicator" = "Indicador inspirado en Apple Intelligence y Aqua Voice";
+"Always show compact pill in idle state" = "Mostrar siempre la cápsula compacta en reposo";
+"A subtle capsule remains on your screen showing Lyra's status. It expands organically with live audio waves when you start speaking." = "Una sutil cápsula permanece en su pantalla mostrando el estado de Lyra. Se expande orgánicamente con ondas de audio al hablar.";
+"Show expanded overlay during recording" = "Mostrar superposición expandida durante la grabación";
+"Shows real-time voice waveform and live transcript as you dictate." = "Muestra la forma de onda de voz en tiempo real y la transcripción al dictar.";
+"Theme" = "Tema";
+"Lyra seamlessly adopts native macOS styling" = "Lyra adopta a la perfección el estilo nativo de macOS";
+"System Dynamic" = "Dinámico del sistema";
+"Adapts automatically between Light, Dark, and High Contrast." = "Se adapta automáticamente entre claro, oscuro y alto contraste.";
+
+/* Hotkeys section */
+"Activation Key" = "Tecla de activación";
+"Global shortcut to trigger dictation anywhere" = "Atajo global para iniciar el dictado en cualquier lugar";
+"Default is Left Option (⌥). You can change it to Right Option, Fn, Control, or any key." = "Por defecto es Opción Izquierda (⌥). Puede cambiarla a Opción Derecha, Fn, Control o cualquier tecla.";
+"Dictation Mode" = "Modo de dictado";
+"Choose how the hotkey activates dictation" = "Elija cómo activa el dictado la tecla de acceso rápido";
+"Push-to-Talk" = "Pulsar para hablar";
+"Hands-Free (Toggle)" = "Manos libres (Alternar)";
+"Hold & Release" = "Mantener y soltar";
+"Hold the key while speaking. When you release it, dictation stops and text is typed at your cursor immediately." = "Mantenga presionada la tecla mientras habla. Al soltarla, el dictado se detiene y el texto se escribe en su cursor.";
+"Click to Start, Click to Stop" = "Clic para iniciar, clic para detener";
+"Press the hotkey once to start recording. Speak freely with your hands off the keyboard. Press the key a second time to stop and insert text." = "Presione la tecla una vez para grabar. Hable con las manos libres. Presione por segunda vez para insertar el texto.";
+
+/* History section */
+"Search history..." = "Buscar en el historial...";
+"dictations" = "dictados";
+"No dictations yet" = "Aún no hay dictados";
+"No matches" = "Sin coincidencias";
+"Your transcriptions will appear here after you dictate." = "Sus transcripciones aparecerán aquí después de dictar.";
+"Copy" = "Copiar";
+"Delete" = "Eliminar";
+
+/* Advanced section */
+"Recording" = "Grabación";
+"Fine-tune capture behavior" = "Ajustar comportamiento de captura de audio";
+"Minimum recording duration" = "Duración mínima de grabación";
+"Recordings shorter than this are silently discarded." = "Las grabaciones más cortas se descartan automáticamente.";
+"Text Insertion" = "Inserción de texto";
+"Method used to type text into active applications" = "Método utilizado para escribir texto en aplicaciones activas";
+"Clipboard Paste (Cmd+V) is recommended and works reliably across all web browsers, Electron apps, messengers, and native software without dropped Cyrillic/Unicode characters. Your existing clipboard is automatically restored after pasting." = "Se recomienda Pegar desde el portapapeles (Cmd+V), funciona de manera confiable en navegadores, apps Electron y mensajeros. Su portapapeles existente se restaura automáticamente.";
+"Reset All Settings to Defaults" = "Restablecer todos los ajustes a los valores predeterminados";
+"This does not delete downloaded models or dictation history." = "Esto no elimina los modelos descargados ni el historial de dictados.";
+
+/* About section */
+"Next-generation voice dictation for macOS" = "Dictado por voz de última generación para macOS";
+"Concept" = "Concepto";
+"Lyra Constellation & AI Voice" = "Constelación Lyra y voz con IA";
+"Architecture" = "Arquitectura";
+"Hybrid Cloud API + Metal Whisper Fallback" = "API híbrida en la nube + respaldo Metal Whisper";
+"Primary Language" = "Idioma principal";
+"Русский язык (Priority #1)" = "Idioma ruso (Prioridad nº 1)";
+"License" = "Licencia";
+"Designed with Apple Intelligence aesthetics." = "Diseñado con la estética de Apple Intelligence.";
+
+/* Menu bar */
+"History..." = "Historial...";
+"Settings..." = "Configuración...";
+"Quit Lyra" = "Salir de Lyra";
+"Last transcription" = "Última transcripción";
+"Listening..." = "Escuchando...";
+"Transcribing..." = "Transcribiendo...";
+"Typing..." = "Escribiendo...";
+"Ready — hold %@ to dictate" = "Listo — mantenga presionado %@ para dictar";
+"Loading model..." = "Cargando modelo...";
+"No model found. Open Settings to download a model." = "No se encontró ningún modelo. Abra Configuración para descargar un modelo.";
+"Microphone access needed" = "Se necesita acceso al micrófono";
+"Accessibility access needed" = "Se necesita acceso de accesibilidad";

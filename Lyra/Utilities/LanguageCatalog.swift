@@ -4,6 +4,7 @@ import Foundation
 enum Language: String, CaseIterable, Identifiable {
     case english = "en"
     case russian = "ru"
+    case spanish = "es"
     case turkish = "tr"
     case azerbaijani = "az"
 
@@ -14,6 +15,7 @@ enum Language: String, CaseIterable, Identifiable {
         switch self {
         case .english: return "English"
         case .russian: return "Русский"
+        case .spanish: return "Español"
         case .turkish: return "Türkçe"
         case .azerbaijani: return "Azərbaycanca"
         }
@@ -32,6 +34,8 @@ enum Language: String, CaseIterable, Identifiable {
             return AppSettings.defaultVocabularyPrompt
         case .russian:
             return LanguageCatalog.defaultRussianVocabularyPrompt
+        case .spanish:
+            return LanguageCatalog.defaultSpanishVocabularyPrompt
         case .turkish:
             return LanguageCatalog.defaultTurkishVocabularyPrompt
         case .azerbaijani:
@@ -78,6 +82,17 @@ extension LanguageCatalog {
         test, Swift, Python, JavaScript, TypeScript, Go, Docker, Kubernetes, Git, GitHub.
         """
 
+    /// Spanish software and daily vocabulary prompt.
+    static let defaultSpanishVocabularyPrompt = """
+        Desarrollo de software, tecnología, ingeniería y diseño de sistemas. Puntuación natural en español, comas, puntos y acentos. \
+        Términos: backend, frontend, pull request, merge, commit, repositorio, rama, despliegue, release, \
+        staging, producción, pipeline, build, bug, función, refactorización, revisión de código, sprint, \
+        arquitectura, microservicios, contenedor, docker, kubernetes, base de datos, consulta, transacción, \
+        índice, migración, caché, sesión, token, autenticación, autorización, endpoint, controlador, servicio, \
+        asíncrono, hilos, cola, webhook, sockets, streaming, protocolo, validación, métricas, monitoreo, alerta, \
+        Swift, Python, JavaScript, TypeScript, Go, Rust, Java, Kotlin, SQL, PostgreSQL, Git, GitHub, API, REST, Linux, macOS.
+        """
+
     /// Azerbaijani software and daily vocabulary prompt.
     static let defaultAzerbaijaniVocabularyPrompt = """
         Proqram təminatı hazırlanması, texnologiya və mühəndislik müzakirəsi. Azərbaycan dili orfoqrafiyası və durğu işarələri. \
@@ -99,7 +114,7 @@ enum LanguageCatalog {
         ModelManager.ModelInfo.mediumEn
     ]
 
-    /// Multilingual models usable for Russian, Turkish, Azerbaijani, and English.
+    /// Multilingual models usable for Russian, Spanish, Turkish, Azerbaijani, and English.
     static let multilingualModels: [ModelManager.ModelInfo] = [
         ModelManager.ModelInfo.baseMultiQ5,
         ModelManager.ModelInfo.smallMultiQ5,
@@ -114,7 +129,7 @@ enum LanguageCatalog {
         switch language {
         case .english:
             return englishModels
-        case .russian, .turkish, .azerbaijani:
+        case .russian, .spanish, .turkish, .azerbaijani:
             return multilingualModels
         }
     }
@@ -123,7 +138,7 @@ enum LanguageCatalog {
         switch language {
         case .english:
             return [ModelManager.ModelInfo.baseEnQ5, ModelManager.ModelInfo.smallEnQ5, ModelManager.ModelInfo.mediumEnQ5]
-        case .russian, .turkish, .azerbaijani:
+        case .russian, .spanish, .turkish, .azerbaijani:
             return [ModelManager.ModelInfo.baseMultiQ5, ModelManager.ModelInfo.smallMultiQ5, ModelManager.ModelInfo.mediumMultiQ5]
         }
     }
@@ -136,7 +151,7 @@ enum LanguageCatalog {
         switch language {
         case .english:
             return ModelManager.ModelInfo.baseEnQ5
-        case .russian, .turkish, .azerbaijani:
+        case .russian, .spanish, .turkish, .azerbaijani:
             return ModelManager.ModelInfo.baseMultiQ5
         }
     }

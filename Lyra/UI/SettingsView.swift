@@ -8,6 +8,7 @@ struct SettingsView: View {
     @ObservedObject private var settings = AppSettings.shared
     @ObservedObject private var modelManager = ModelManager.shared
     @ObservedObject private var permissions = PermissionManager.shared
+    @ObservedObject private var l10n = LocalizationService.shared
     @State private var selectedSection: SettingsSection = .general
     @Environment(\.colorScheme) private var colorScheme
 
@@ -22,6 +23,19 @@ struct SettingsView: View {
         case about = "About"
 
         var id: String { rawValue }
+
+        var localizedTitle: String {
+            switch self {
+            case .general: return L10n.tr("General")
+            case .dictation: return L10n.tr("Dictation")
+            case .provider: return L10n.tr("Provider")
+            case .appearance: return L10n.tr("Appearance")
+            case .hotkeys: return L10n.tr("Hotkeys")
+            case .history: return L10n.tr("History")
+            case .advanced: return L10n.tr("Advanced")
+            case .about: return L10n.tr("About")
+            }
+        }
 
         var icon: String {
             switch self {
@@ -51,7 +65,7 @@ struct SettingsView: View {
 
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Settings")
+            Text(L10n.tr("Settings"))
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
@@ -61,7 +75,7 @@ struct SettingsView: View {
 
             ForEach(SettingsSection.allCases) { section in
                 SidebarRow(
-                    title: section.rawValue,
+                    title: section.localizedTitle,
                     icon: section.icon,
                     isSelected: selectedSection == section,
                     colorScheme: colorScheme
@@ -75,7 +89,7 @@ struct SettingsView: View {
                 Circle()
                     .fill(engine.isReadyToRecord ? .green : .orange)
                     .frame(width: 7, height: 7)
-                Text(engine.isReadyToRecord ? "Ready" : "Loading...")
+                Text(engine.isReadyToRecord ? L10n.tr("Ready") : L10n.tr("Loading..."))
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -99,7 +113,7 @@ struct SettingsView: View {
     private var detailPane: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                Text(selectedSection.rawValue)
+                Text(selectedSection.localizedTitle)
                     .font(.system(size: 20, weight: .bold))
                     .padding(.bottom, 16)
 
@@ -230,12 +244,23 @@ private struct GeneralSection: View {
     var body: some View {
         VStack(spacing: 14) {
             SettingsCard(colorScheme: colorScheme) {
-                CardHeader("Microphone", subtitle: "Audio input device for recording")
-                Picker("Input device", selection: Binding(
+                CardHeader(L10n.tr("Interface Language"), subtitle: L10n.tr("Choose application display language"))
+                Picker(L10n.tr("Interface Language"), selection: $settings.interfaceLanguage) {
+                    ForEach(AppLanguage.allCases) { lang in
+                        Text(lang.displayName).tag(lang)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .font(.system(size: 13))
+            }
+
+            SettingsCard(colorScheme: colorScheme) {
+                CardHeader(L10n.tr("Microphone"), subtitle: L10n.tr("Audio input device for recording"))
+                Picker(L10n.tr("Input device"), selection: Binding(
                     get: { settings.selectedAudioDeviceUID ?? "" },
                     set: { settings.selectedAudioDeviceUID = $0.isEmpty ? nil : $0 }
                 )) {
-                    Text("System Default").tag("")
+                    Text(L10n.tr("System Default")).tag("")
                     ForEach(audioDevices.inputDevices) { device in
                         Text(device.name).tag(device.uid)
                     }
@@ -245,10 +270,10 @@ private struct GeneralSection: View {
             }
 
             SettingsCard(colorScheme: colorScheme) {
-                CardHeader("Preferences")
-                Toggle("Sound feedback", isOn: $settings.soundFeedbackEnabled)
+                CardHeader(L10n.tr("Preferences"))
+                Toggle(L10n.tr("Sound feedback"), isOn: $settings.soundFeedbackEnabled)
                     .font(.system(size: 13))
-                Toggle("Launch at login", isOn: $settings.launchAtLogin)
+                Toggle(L10n.tr("Launch at login"), isOn: $settings.launchAtLogin)
                     .font(.system(size: 13))
                     .onChange(of: settings.launchAtLogin) { newValue in
                         LaunchAtLoginHelper.setEnabled(newValue)
@@ -269,14 +294,14 @@ private struct ModelSection: View {
     var body: some View {
         VStack(spacing: 14) {
             // Recommended quantized models
-            CardHeader("Recommended (Quantized)", subtitle: "Smaller, faster, near-identical accuracy")
+            CardHeader(L10n.tr("Recommended (Quantized)"), subtitle: L10n.tr("Smaller, faster, near-identical accuracy"))
 
             ForEach(LanguageCatalog.recommendedModels(for: settings.selectedLanguage)) { model in
                 modelCard(model)
             }
 
             // VAD model
-            CardHeader("Voice Activity Detection", subtitle: "Trims silence for faster inference (2 MB)")
+            CardHeader(L10n.tr("Voice Activity Detection"), subtitle: L10n.tr("Trims silence for faster inference (2 MB)"))
 
             let vadDownloaded = modelManager.isModelDownloaded(ModelManager.ModelInfo.vadSilero)
             SettingsCard(colorScheme: colorScheme) {
@@ -292,7 +317,7 @@ private struct ModelSection: View {
                     VStack(alignment: .leading, spacing: 3) {
                         Text("Silero VAD")
                             .font(.system(size: 13, weight: .semibold))
-                        Text("Auto-trims silence before transcription")
+                        Text(L10n.tr("Auto-trims silence before transcription"))
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                     }
@@ -304,7 +329,7 @@ private struct ModelSection: View {
                     } else if modelManager.isDownloading(.vadSilero) {
                         downloadingControls(for: .vadSilero)
                     } else {
-                        Button("Download") {
+                        Button(L10n.tr("Download")) {
                             modelManager.startDownload(.vadSilero)
                         }
                         .buttonStyle(.bordered)
@@ -322,7 +347,7 @@ private struct ModelSection: View {
                 }
                 .padding(.top, 8)
             } label: {
-                Text("Full Precision Models")
+                Text(L10n.tr("Full Precision Models"))
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.secondary)
             }
@@ -368,7 +393,7 @@ private struct ModelSection: View {
                                 .foregroundStyle(.orange)
                         }
                         if isSelected {
-                            Text("ACTIVE")
+                            Text(L10n.tr("ACTIVE"))
                                 .font(.system(size: 9, weight: .bold))
 
                                 .padding(.horizontal, 6)
@@ -390,7 +415,7 @@ private struct ModelSection: View {
 
                 if isDownloaded {
                     if !isSelected {
-                        Button("Activate") {
+                        Button(L10n.tr("Activate")) {
                             settings.selectedModel = model.settingsId
                             engine.reloadModel()
                         }
@@ -405,7 +430,7 @@ private struct ModelSection: View {
                 } else if modelManager.isDownloading(model) {
                     downloadingControls(for: model)
                 } else {
-                    Button("Download") {
+                    Button(L10n.tr("Download")) {
                         modelManager.startDownload(model)
                     }
                     .buttonStyle(.bordered)
@@ -464,13 +489,13 @@ private struct VocabularySection: View {
         VStack(spacing: 14) {
             // Names & Terms
             SettingsCard(colorScheme: colorScheme) {
-                CardHeader("Names & Terms", subtitle: "Add names of people, places, and terms you use often")
+                CardHeader(L10n.tr("Names & Terms"), subtitle: L10n.tr("Add names of people, places, and terms you use often"))
                 CustomTermsEditor(settings: settings, colorScheme: colorScheme)
             }
 
             // Developer Vocabulary
             SettingsCard(colorScheme: colorScheme) {
-                CardHeader("Developer Vocabulary", subtitle: "Bias Whisper toward recognizing these terms")
+                CardHeader(L10n.tr("Developer Vocabulary"), subtitle: L10n.tr("Bias Whisper toward recognizing these terms"))
                 TextEditor(text: $settings.vocabularyPrompt)
                     .font(.system(size: 12, design: .monospaced))
                     .padding(8)
@@ -485,11 +510,11 @@ private struct VocabularySection: View {
                     )
 
                 HStack {
-                    Text("Add project-specific terms for better recognition")
+                    Text(L10n.tr("Add project-specific terms for better recognition"))
                         .font(.system(size: 11))
                         .foregroundStyle(.tertiary)
                     Spacer()
-                    Button("Reset") {
+                    Button(L10n.tr("Reset")) {
                         settings.vocabularyPrompt = AppSettings.defaultVocabularyPrompt
                     }
                     .buttonStyle(.bordered)
@@ -511,12 +536,12 @@ private struct CustomTermsEditor: View {
         VStack(alignment: .leading, spacing: 10) {
             // Input row
             HStack(spacing: 8) {
-                TextField("Type a name or term...", text: $newTerm)
+                TextField(L10n.tr("Type a name or term..."), text: $newTerm)
                     .textFieldStyle(.roundedBorder)
                     .font(.system(size: 12))
                     .onSubmit { addTerm() }
 
-                Button("Add") { addTerm() }
+                Button(L10n.tr("Add")) { addTerm() }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
                     .tint(.blue)
@@ -539,7 +564,7 @@ private struct CustomTermsEditor: View {
                         .font(.system(size: 11))
                         .foregroundColor(count >= 100 ? .orange : .secondary.opacity(0.5))
                     Spacer()
-                    Button("Clear All") {
+                    Button(L10n.tr("Clear All")) {
                         settings.customTerms = []
                     }
                     .buttonStyle(.bordered)

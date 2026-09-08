@@ -9,6 +9,7 @@ APP_BUNDLE := $(BUILD_DIR)/Lyra.app
 # what we ship — Apple Silicon and Intel users both need to be able to run it.
 
 SWIFT_FILES := \
+	Lyra/Utilities/LocalizationService.swift \
 	Lyra/Utilities/Settings.swift \
 	Lyra/Utilities/LanguageCatalog.swift \
 	Lyra/Utilities/HistoryStore.swift \

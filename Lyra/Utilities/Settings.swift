@@ -64,6 +64,8 @@ final class AppSettings: ObservableObject, @unchecked Sendable {
         case aiPostProcessingTimeoutSeconds
         // Smart Voice Editing Keys
         case smartVoiceEditingEnabled
+        // Interface Localization Key
+        case interfaceLanguage
     }
 
     // MARK: - Properties
@@ -261,6 +263,16 @@ final class AppSettings: ObservableObject, @unchecked Sendable {
     var smartVoiceEditingEnabled: Bool {
         get { defaults.object(forKey: Key.smartVoiceEditingEnabled.rawValue) as? Bool ?? true }
         set { defaults.set(newValue, forKey: Key.smartVoiceEditingEnabled.rawValue); objectWillChange.send() }
+    }
+
+    // MARK: - Interface Language
+
+    var interfaceLanguage: AppLanguage {
+        get { LocalizationService.shared.currentLanguage }
+        set {
+            LocalizationService.shared.setLanguage(newValue)
+            objectWillChange.send()
+        }
     }
 
     // MARK: - Floating Widget Properties
