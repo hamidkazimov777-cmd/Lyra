@@ -1,381 +1,433 @@
 import SwiftUI
 
-/// Premium Dynamic Island & Apple Intelligence inspired floating HUD.
-/// Compact and unobtrusive when idle, smoothly expands into a rich voice & live transcript surface during speech.
+/// Geometry shared between the SwiftUI island and the AppKit panel that hosts it.
+///
+/// The panel is a single fixed size that never changes — every earlier problem
+/// (the island sliding sideways, shadows sliced off at an invisible edge, the
+/// resize/`windowDidMove` feedback loop) came from resizing the window to fit
+/// its contents. Instead the window is deliberately larger than the island, the
+/// island animates inside it, and the panel only needs to know which rectangle
+/// is currently opaque so clicks outside it fall through to the app below.
+enum HUDLayout {
+    /// Fixed panel size. Wide and tall enough for the largest card plus room
+    /// for its glow, so nothing is ever clipped by the window edge.
+    static let panelSize = CGSize(width: 520, height: 210)
+
+    /// Distance from the top of the panel to the top of the island.
+    static let topInset: CGFloat = 10
+
+    static let idleSize = CGSize(width: 132, height: 38)
+    static let listeningSize = CGSize(width: 420, height: 134)
+    static let compactCardSize = CGSize(width: 420, height: 116)
+
+    static func contentSize(for state: DictationState) -> CGSize {
+        switch state {
+        case .idle: return idleSize
+        case .recording: return listeningSize
+        case .processing, .typing: return compactCardSize
+        }
+    }
+
+    /// The island's rectangle in panel coordinates (AppKit, origin bottom-left),
+    /// padded slightly so the border is comfortable to click and drag.
+    static func hitRect(for state: DictationState) -> CGRect {
+        let size = contentSize(for: state)
+        let padding: CGFloat = 6
+        return CGRect(
+            x: (panelSize.width - size.width) / 2 - padding,
+            y: panelSize.height - topInset - size.height - padding,
+            width: size.width + padding * 2,
+            height: size.height + padding * 2
+        )
+    }
+}
+
+/// The floating Lyra island.
+///
+/// Idle is a bare capsule — a dot and the word Lyra, nothing else. Clicking it
+/// starts dictation; right-clicking opens the menu that used to live in the
+/// inline buttons. During dictation it expands into a card with the live
+/// transcript and a voice visualiser, and the border comes alive with a slowly
+/// rotating colour sweep.
 struct DynamicIslandHUDView: View {
     @ObservedObject var engine: DictationEngine
     @ObservedObject var analyzer: AudioLevelAnalyzer
     @ObservedObject private var settings = AppSettings.shared
     @ObservedObject private var permissionManager = PermissionManager.shared
-    @Environment(\.colorScheme) private var colorScheme
 
     @State private var isHovered = false
 
     var body: some View {
-        ZStack {
-            switch engine.state {
-            case .idle:
-                idleIsland
-                    .transition(.asymmetric(
-                        insertion: .scale(scale: 0.85).combined(with: .opacity),
-                        removal: .scale(scale: 0.9).combined(with: .opacity)
-                    ))
-            case .recording:
-                recordingIsland
-                    .transition(.asymmetric(
-                        insertion: .scale(scale: 0.95).combined(with: .opacity),
-                        removal: .scale(scale: 0.95).combined(with: .opacity)
-                    ))
-            case .processing, .typing:
-                processingIsland
-                    .transition(.opacity)
-            }
-        }
-        .animation(.spring(response: 0.36, dampingFraction: 0.78, blendDuration: 0.1), value: engine.state)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        island
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .padding(.top, HUDLayout.topInset)
     }
 
-    // MARK: - Idle State (Compact Pill)
+    private var island: some View {
+        let size = HUDLayout.contentSize(for: engine.state)
 
-    private var idleIsland: some View {
-        HStack(spacing: 8) {
-            // Constellation Lyra symbol / Voice dot
-            ZStack {
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            colors: [
-                                Color(red: 0.35, green: 0.78, blue: 1.0),
-                                Color(red: 0.58, green: 0.45, blue: 1.0)
-                            ],
-                            center: .center,
-                            startRadius: 0,
-                            endRadius: 9
-                        )
-                    )
-                    .frame(width: 9, height: 9)
-                    .blur(radius: isHovered ? 1 : 0)
-
-                if isHovered {
-                    Circle()
-                        .stroke(Color(red: 0.35, green: 0.78, blue: 1.0).opacity(0.6), lineWidth: 1.5)
-                        .frame(width: 15, height: 15)
-                }
+        return ZStack {
+            if engine.state == .idle {
+                idleContent.transition(.opacity)
+            } else {
+                expandedContent.transition(.opacity)
             }
+        }
+        .frame(width: size.width, height: size.height)
+        .background(shell)
+        .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        .onTapGesture { engine.toggleRecording() }
+        .contextMenu { menuItems }
+        .onHover { isHovered = $0 }
+        .help(helpText)
+        .animation(.spring(response: 0.32, dampingFraction: 0.82), value: engine.state)
+    }
+
+    // MARK: - Idle
+
+    private var idleContent: some View {
+        HStack(spacing: 8) {
+            statusDot(color: dotColor, size: 9)
 
             Text("Lyra")
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
-                .foregroundStyle(.primary)
-                .fixedSize()
-
-            if !permissionManager.accessibilityGranted {
-                Button(action: {
-                    permissionManager.requestAccessibility()
-                    permissionManager.openAccessibilitySettings()
-                }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                        Text(L10n.tr("Enable Accessibility"))
-                    }
-                    .font(.system(size: 9, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2.5)
-                    .background(Capsule().fill(Color.orange))
-                }
-                .buttonStyle(.plain)
-                .help(L10n.tr("Lyra requires Accessibility permission to type text at cursor. Click to open System Settings."))
-            } else if let err = engine.transcriptionError {
-                HStack(spacing: 4) {
-                    Image(systemName: "exclamationmark.circle.fill")
-                    Text(err)
-                }
-                .font(.system(size: 9, weight: .medium, design: .rounded))
-                .foregroundStyle(.orange)
-                .lineLimit(1)
-                .frame(maxWidth: 160)
-            } else {
-                Text(hotkeyDisplay)
-                    .font(.system(size: 10, weight: .bold, design: .rounded))
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2.5)
-                    .background(Capsule().fill(Color.secondary.opacity(0.18)))
-                    .foregroundStyle(.secondary)
-                    .fixedSize()
-            }
-
-            // Quick Record Button
-            Button(action: {
-                engine.toggleRecording()
-            }) {
-                Image(systemName: "mic.fill")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(Color.blue)
-                    .padding(4)
-                    .background(Circle().fill(Color.blue.opacity(0.15)))
-            }
-            .buttonStyle(.plain)
-            .help(L10n.tr("Click to start dictation") + " (\(hotkeyDisplay))")
-
-            // Settings Button
-            Button(action: {
-                NotificationCenter.default.post(name: NSNotification.Name("OpenSettings"), object: nil)
-            }) {
-                Image(systemName: "gearshape.fill")
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(.secondary)
-                    .padding(4)
-            }
-            .buttonStyle(.plain)
-            .help(L10n.tr("Open Settings"))
+                .font(.system(size: 12.5, weight: .semibold, design: .rounded))
+                .foregroundColor(.white.opacity(0.92))
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 7)
-        .background(islandBackground(isExpanded: false))
-        .contentShape(Rectangle())
-        .onTapGesture {
-            engine.toggleRecording()
-        }
-        .contextMenu {
-            Button(L10n.tr("Start Dictation")) {
-                engine.toggleRecording()
-            }
-            Divider()
-            Button(L10n.tr("Open Settings...")) {
-                NotificationCenter.default.post(name: NSNotification.Name("OpenSettings"), object: nil)
-            }
-            Button(settings.isFloatingWidgetAlwaysVisible ? L10n.tr("Hide Floating Pill") : L10n.tr("Show Floating Pill")) {
-                settings.isFloatingWidgetAlwaysVisible.toggle()
-            }
-            Divider()
-            Button(L10n.tr("Quit Lyra")) {
-                NSApp.terminate(nil)
-            }
-        }
-        .onHover { isHovered = $0 }
     }
 
-    // MARK: - Recording State (Expanded Island with Fluid Organic Waveform)
+    // MARK: - Expanded (listening / thinking / inserting)
 
-    /// Text to show while recording: the live-dictation stream if that mode is
-    /// on, otherwise the display-only local preview.
+    private var expandedContent: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            HStack(spacing: 8) {
+                statusDot(color: accent, size: 8)
+
+                Text("Lyra")
+                    .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+                    .foregroundColor(.white.opacity(0.9))
+
+                Spacer(minLength: 8)
+
+                Text(statusLabel)
+                    .font(.system(size: 10.5, weight: .medium, design: .rounded))
+                    .foregroundColor(accent)
+                    .lineLimit(1)
+            }
+
+            Text(displayText)
+                .font(.system(size: 13.5, weight: .regular))
+                .foregroundColor(isPlaceholder ? .white.opacity(0.4) : .white.opacity(0.92))
+                .lineLimit(2)
+                .truncationMode(.tail)
+                .multilineTextAlignment(.leading)
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+                .frame(height: 38, alignment: .topLeading)
+                .animation(.easeOut(duration: 0.15), value: displayText)
+
+            visualizer
+                .frame(height: engine.state == .recording ? 30 : 18)
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 13)
+    }
+
+    /// A single animated surface for the whole card: one `TimelineView` drives
+    /// both the waveform and the particles. Nesting several of them is what made
+    /// the previous version pin the GPU.
+    private var visualizer: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 24.0, paused: false)) { context in
+            let t = context.date.timeIntervalSinceReferenceDate
+            let isRecording = engine.state == .recording
+            let level = waveLevel
+            let bands = analyzer.frequencyBands
+            let tint = accent
+
+            Canvas { graphics, size in
+                if isRecording {
+                    Self.drawWave(in: &graphics, size: size, time: t, level: level, bands: bands)
+                } else {
+                    Self.drawParticles(in: &graphics, size: size, time: t, color: tint)
+                }
+            }
+        }
+    }
+
+    // MARK: - Shell
+
+    private var cornerRadius: CGFloat {
+        engine.state == .idle ? HUDLayout.idleSize.height / 2 : 24
+    }
+
+    /// Dark glass capsule. Deliberately opaque: `.ultraThinMaterial` on a
+    /// floating panel forces the window server to re-capture everything behind
+    /// the window on every frame, which is expensive enough to stall the whole
+    /// machine when the card is also animating.
+    private var shell: some View {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            .fill(Color(red: 0.04, green: 0.04, blue: 0.05).opacity(0.96))
+            .overlay(border)
+            .shadow(color: accent.opacity(engine.state == .idle ? 0.12 : 0.28), radius: 14, x: 0, y: 5)
+    }
+
+    @ViewBuilder
+    private var border: some View {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+
+        if engine.state == .idle {
+            // Static gradient while idle — the island sits on screen all day and
+            // must cost nothing when there is nothing to say.
+            shape
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [
+                            Color(red: 0.23, green: 0.51, blue: 0.96).opacity(isHovered ? 0.85 : 0.55),
+                            Color(red: 0.55, green: 0.36, blue: 0.96).opacity(isHovered ? 0.85 : 0.55)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1.2
+                )
+                .allowsHitTesting(false)
+        } else {
+            TimelineView(.animation(minimumInterval: 1.0 / 24.0, paused: false)) { context in
+                let angle = context.date.timeIntervalSinceReferenceDate * 42
+                shape.strokeBorder(
+                    AngularGradient(colors: sweepColors, center: .center, angle: .degrees(angle)),
+                    lineWidth: 1.4
+                )
+            }
+            .allowsHitTesting(false)
+        }
+    }
+
+    // MARK: - Palette
+
+    private var accent: Color {
+        switch engine.state {
+        case .idle:
+            return Color(red: 0.23, green: 0.51, blue: 0.96)
+        case .recording:
+            return engine.isSmartEditActive
+                ? Color(red: 0.85, green: 0.28, blue: 0.94)   // Smart Edit: magenta
+                : Color(red: 0.23, green: 0.51, blue: 0.96)   // #3B82F6
+        case .processing:
+            return Color(red: 0.55, green: 0.36, blue: 0.96)  // #8B5CF6
+        case .typing:
+            return Color(red: 0.02, green: 0.71, blue: 0.83)  // #06B6D4
+        }
+    }
+
+    /// Colours swept around the border while the island is active. Ends on the
+    /// first colour again so the rotation has no visible seam.
+    private var sweepColors: [Color] {
+        [
+            accent,
+            Color(red: 0.38, green: 0.72, blue: 1.0),
+            Color(red: 0.55, green: 0.36, blue: 0.96),
+            accent.opacity(0.35),
+            accent
+        ]
+    }
+
+    private var dotColor: Color {
+        if !permissionManager.accessibilityGranted || engine.transcriptionError != nil {
+            return .orange
+        }
+        return Color(red: 0.36, green: 0.60, blue: 0.98)
+    }
+
+    private func statusDot(color: Color, size: CGFloat) -> some View {
+        Circle()
+            .fill(
+                RadialGradient(
+                    colors: [color, color.opacity(0.55)],
+                    center: .center,
+                    startRadius: 0,
+                    endRadius: size
+                )
+            )
+            .frame(width: size, height: size)
+    }
+
+    // MARK: - Text
+
+    private var statusLabel: String {
+        switch engine.state {
+        case .idle:
+            return ""
+        case .recording:
+            if engine.isSmartEditActive { return L10n.tr("Smart Edit") }
+            if engine.isHandsFreeActive { return L10n.tr("Hands-free") }
+            return L10n.tr("Listening...")
+        case .processing:
+            return engine.isFallbackActive ? L10n.tr("Local Fallback...") : L10n.tr("Analyzing...")
+        case .typing:
+            return L10n.tr("Inserting text...")
+        }
+    }
+
+    /// Live stream when live dictation is on, otherwise the local preview.
     private var transcriptInProgress: String {
         engine.liveTranscription.isEmpty ? engine.previewTranscript : engine.liveTranscription
     }
 
-    private var recordingIsland: some View {
-        let isSmartEdit = engine.isSmartEditActive
-        let accentColor: Color = isSmartEdit ? Color(red: 0.65, green: 0.35, blue: 1.0) : .red
-
-        return HStack(spacing: 12) {
-            // Recording state beacon (Click to Stop)
-            Button(action: {
-                engine.toggleRecording()
-            }) {
-                HStack(spacing: 6) {
-                    Circle()
-                        .fill(accentColor)
-                        .frame(width: 8, height: 8)
-                        .overlay(
-                            Circle()
-                                .stroke(accentColor.opacity(0.5), lineWidth: 2)
-                                .scaleEffect(1.4)
-                        )
-
-                    Text(engine.isHandsFreeActive ? L10n.tr("Stop") : (isSmartEdit ? L10n.tr("Smart Edit") : L10n.tr("Recording")))
-                        .font(.system(size: 9, weight: .bold, design: .rounded))
-                        .foregroundStyle(accentColor)
-                }
-            }
-            .buttonStyle(.plain)
-            .help(L10n.tr("Click to stop dictation and insert text"))
-
-            // Organic Fluid Voice Visualizer
-            FluidOrganicSoundWave(levels: analyzer.levels, frequencyBands: analyzer.frequencyBands)
-                .frame(width: 110, height: 22)
-
-            // Live Transcript or Status text
-            if !transcriptInProgress.isEmpty {
-                // Grows with the text instead of truncating it: the window
-                // resizes itself to fit (see RecordingHUDWindow.resizeToFit).
-                // A fixed width, not maxWidth: inside an HStack a flexible frame
-                // collapses to the text's minimum intrinsic width, which wraps
-                // in the middle of words ("запис" / "ь" on separate lines).
-                Text(transcriptInProgress)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.primary)
-                    .lineLimit(3)
-                    .multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(width: 320, alignment: .leading)
-                    .animation(.easeOut(duration: 0.18), value: transcriptInProgress)
-                    .transition(.opacity)
-            } else if isSmartEdit {
-                HStack(spacing: 4) {
-                    Image(systemName: "wand.and.stars")
-                        .font(.system(size: 10))
-                    Text(L10n.tr("Say instruction..."))
-                        .font(.system(size: 11, weight: .medium))
-                }
-                .foregroundStyle(accentColor)
-            } else {
-                Text(settings.selectedLanguage.displayName)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.secondary)
-            }
-
-            // Mode indicator (Cloud vs Local)
-            providerBadge
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 9)
-        .background(islandBackground(isExpanded: true, accentColor: accentColor))
+    private var placeholderText: String {
+        if engine.isSmartEditActive { return L10n.tr("Say instruction...") }
+        return settings.selectedLanguage.displayName
     }
 
-    // MARK: - Processing / Typing State
-
-    private var processingIsland: some View {
-        HStack(spacing: 10) {
-            if engine.state == .processing {
-                ProgressView()
-                    .scaleEffect(0.65)
-                    .frame(width: 14, height: 14)
-                Text(engine.isFallbackActive ? L10n.tr("Local Fallback...") : L10n.tr("Transcribing..."))
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.orange)
-            } else {
-                Image(systemName: "text.cursor")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.blue)
-                Text(L10n.tr("Inserting text..."))
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.blue)
-            }
-
-            if !engine.lastTranscription.isEmpty {
-                Text(engine.lastTranscription)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .frame(maxWidth: 140, alignment: .leading)
-            }
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
-        .background(islandBackground(isExpanded: true, accentColor: engine.state == .processing ? .orange : .blue))
-    }
-
-    // MARK: - Helpers
-
-    private var providerBadge: some View {
-        let isAPI = settings.transcriptionProviderType == .api
-        return Text(isAPI ? L10n.tr("Cloud") : L10n.tr("Local"))
-            .font(.system(size: 8, weight: .bold, design: .rounded))
-            .padding(.horizontal, 5)
-            .padding(.vertical, 2)
-            .background(Capsule().fill(isAPI ? Color.purple.opacity(0.18) : Color.blue.opacity(0.18)))
-            .foregroundStyle(isAPI ? .purple : .blue)
-    }
-
-    private var hotkeyDisplay: String {
-        settings.primaryHotkey.shortLabel
-    }
-
-    private func islandBackground(isExpanded: Bool, accentColor: Color? = nil) -> some View {
-        Capsule()
-            .fill(colorScheme == .dark ? Color.black.opacity(0.72) : Color.white.opacity(0.85))
-            .background(
-                Capsule()
-                    .fill(.ultraThinMaterial)
-            )
-            .overlay(
-                Capsule()
-                    .strokeBorder(
-                        LinearGradient(
-                            colors: [
-                                (accentColor ?? Color(red: 0.35, green: 0.78, blue: 1.0)).opacity(isExpanded ? 0.6 : 0.35),
-                                (accentColor ?? Color(red: 0.58, green: 0.45, blue: 1.0)).opacity(isExpanded ? 0.4 : 0.15)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: isExpanded ? 1.2 : 0.8
-                    )
-            )
-            .shadow(
-                color: (accentColor ?? Color(red: 0.35, green: 0.78, blue: 1.0)).opacity(isExpanded ? 0.22 : 0.08),
-                radius: isExpanded ? 12 : 6,
-                x: 0,
-                y: isExpanded ? 4 : 2
-            )
-            .shadow(
-                color: Color.black.opacity(colorScheme == .dark ? 0.45 : 0.12),
-                radius: 8,
-                x: 0,
-                y: 4
-            )
-    }
-}
-
-// MARK: - Fluid Organic SoundWave (Apple Intelligence & Siri style)
-
-struct FluidOrganicSoundWave: View {
-    let levels: [Float]
-    let frequencyBands: [Float]
-
-    var body: some View {
-        GeometryReader { proxy in
-            let width = proxy.size.width
-            let height = proxy.size.height
-            let currentLevel = CGFloat(averageLevel)
-
-            ZStack {
-                // Background ambient harmonic glow
-                Capsule()
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color(red: 0.35, green: 0.78, blue: 1.0).opacity(0.25 * currentLevel),
-                                Color(red: 0.58, green: 0.45, blue: 1.0).opacity(0.35 * currentLevel),
-                                Color(red: 1.0, green: 0.35, blue: 0.65).opacity(0.25 * currentLevel)
-                            ],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .frame(height: max(4, height * (0.3 + currentLevel * 0.7)))
-                    .blur(radius: 4)
-
-                // Multi-tone fluid wave lines
-                HStack(spacing: 3) {
-                    ForEach(0..<min(frequencyBands.count, 14), id: \.self) { i in
-                        let band = CGFloat(frequencyBands[i])
-                        let barH = max(3.0, (height * 0.9) * (0.15 + band * 0.85))
-
-                        RoundedRectangle(cornerRadius: 1.5)
-                            .fill(
-                                LinearGradient(
-                                    colors: [
-                                        Color(red: 0.35, green: 0.80, blue: 1.0),
-                                        Color(red: 0.60, green: 0.45, blue: 1.0),
-                                        Color(red: 1.0, green: 0.40, blue: 0.70)
-                                    ],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                )
-                            )
-                            .frame(width: 3.5, height: barH)
-                            .animation(.easeOut(duration: 0.08), value: band)
-                    }
-                }
-            }
-            .frame(width: width, height: height)
+    private var rawText: String {
+        switch engine.state {
+        case .recording:
+            return transcriptInProgress
+        case .processing:
+            return engine.lastTranscription.isEmpty ? transcriptInProgress : engine.lastTranscription
+        default:
+            return engine.lastTranscription
         }
     }
 
-    private var averageLevel: Float {
+    private var isPlaceholder: Bool { rawText.isEmpty }
+
+    private var displayText: String { isPlaceholder ? placeholderText : rawText }
+
+    private var helpText: String {
+        if !permissionManager.accessibilityGranted {
+            return L10n.tr("Lyra requires Accessibility permission to type text at cursor. Click to open System Settings.")
+        }
+        if let err = engine.transcriptionError {
+            return err
+        }
+        if engine.state == .idle {
+            return L10n.tr("Click to start dictation") + " (\(settings.primaryHotkey.shortLabel))"
+        }
+        return L10n.tr("Click to stop dictation and insert text")
+    }
+
+    // MARK: - Menu
+    //
+    // The inline mic / settings buttons are gone from the capsule, so everything
+    // they did lives here (and in the menu bar item).
+
+    @ViewBuilder
+    private var menuItems: some View {
+        if !permissionManager.accessibilityGranted {
+            Button(L10n.tr("Enable Accessibility")) {
+                permissionManager.requestAccessibility()
+                permissionManager.openAccessibilitySettings()
+            }
+            Divider()
+        }
+
+        Button(engine.state == .idle ? L10n.tr("Start Dictation") : L10n.tr("Stop")) {
+            engine.toggleRecording()
+        }
+        Divider()
+        Button(L10n.tr("Open Settings...")) {
+            NotificationCenter.default.post(name: NSNotification.Name("OpenSettings"), object: nil)
+        }
+        Button(settings.isFloatingWidgetAlwaysVisible ? L10n.tr("Hide Floating Pill") : L10n.tr("Show Floating Pill")) {
+            settings.isFloatingWidgetAlwaysVisible.toggle()
+        }
+        Divider()
+        Button(L10n.tr("Quit Lyra")) {
+            NSApp.terminate(nil)
+        }
+    }
+
+    // MARK: - Canvas drawing
+
+    /// Rolling loudness, 0...1, driving the wave amplitude.
+    private var waveLevel: Double {
+        let levels = analyzer.levels
         guard !levels.isEmpty else { return 0.1 }
-        let sum = levels.suffix(10).reduce(0, +)
-        return min(1.0, max(0.1, sum / Float(min(levels.count, 10)) * 2.5))
+        let recent = levels.suffix(8)
+        let avg = recent.reduce(0, +) / Float(recent.count)
+        return Double(min(1.0, max(0.08, avg * 2.6)))
+    }
+
+    /// Three flowing sine curves: amplitude from the microphone level, shape
+    /// modulated by the analyzer's frequency bands.
+    private static func drawWave(
+        in graphics: inout GraphicsContext,
+        size: CGSize,
+        time: Double,
+        level: Double,
+        bands: [Float]
+    ) {
+        let mid = Double(size.height) / 2
+        let maxAmp = Double(size.height) / 2 - 1
+
+        for layer in 0..<3 {
+            let amp = maxAmp * (0.16 + 0.84 * level) * (1.0 - Double(layer) * 0.26)
+            let freq = 1.2 + Double(layer) * 0.7
+            let phase = time * (1.1 + Double(layer) * 0.3) * (layer % 2 == 0 ? 1 : -1)
+
+            var path = Path()
+            var x: Double = 0
+            while x <= Double(size.width) {
+                let u = size.width > 0 ? x / Double(size.width) : 0
+                // Taper both ends so the wave floats rather than being cut off.
+                let taper = pow(sin(u * .pi), 0.6)
+                let y = mid + sin(u * freq * 2 * .pi + phase) * amp * taper * envelope(bands, at: u)
+                let point = CGPoint(x: x, y: y)
+                if x == 0 { path.move(to: point) } else { path.addLine(to: point) }
+                x += 4
+            }
+
+            let fade = 0.95 - Double(layer) * 0.25
+            graphics.stroke(
+                path,
+                with: .linearGradient(
+                    Gradient(colors: [
+                        Color(red: 0.23, green: 0.51, blue: 0.96).opacity(fade),
+                        Color(red: 0.45, green: 0.68, blue: 1.0).opacity(fade),
+                        Color(red: 0.62, green: 0.42, blue: 0.98).opacity(fade)
+                    ]),
+                    startPoint: .zero,
+                    endPoint: CGPoint(x: size.width, y: 0)
+                ),
+                style: StrokeStyle(lineWidth: 2.4 - Double(layer) * 0.6, lineCap: .round)
+            )
+        }
+    }
+
+    /// Frequency-band energy at a horizontal position, interpolated so the curve
+    /// breathes with the voice instead of stepping between bars.
+    private static func envelope(_ bands: [Float], at u: Double) -> Double {
+        guard bands.count > 1 else { return 1 }
+        let pos = u * Double(bands.count - 1)
+        let i = min(bands.count - 2, max(0, Int(pos)))
+        let f = pos - Double(i)
+        let value = Double(bands[i]) * (1 - f) + Double(bands[i + 1]) * f
+        return 0.35 + 0.65 * min(1, value * 1.6)
+    }
+
+    /// Drifting dots for the thinking / inserting stages.
+    private static func drawParticles(
+        in graphics: inout GraphicsContext,
+        size: CGSize,
+        time: Double,
+        color: Color
+    ) {
+        let count = 20
+        let mid = Double(size.height) / 2
+
+        for i in 0..<count {
+            let u = Double(i) / Double(count - 1)
+            let phase = time * 1.7 - u * 3.6
+            let wave = 0.5 + 0.5 * sin(phase)
+            let lift = sin(phase) * Double(size.height) * 0.3
+            let radius = 1.4 + 1.3 * wave
+            let x = 6 + u * (Double(size.width) - 12)
+            let rect = CGRect(
+                x: x - radius,
+                y: mid + lift - radius,
+                width: radius * 2,
+                height: radius * 2
+            )
+            graphics.fill(Path(ellipseIn: rect), with: .color(color.opacity(0.25 + 0.6 * wave)))
+        }
     }
 }

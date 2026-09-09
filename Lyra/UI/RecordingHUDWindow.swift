@@ -9,145 +9,149 @@ final class HUDPanel: NSPanel {
     override var canBecomeMain: Bool { false }
 }
 
+/// Container whose clickable area is limited to the island itself.
+///
+/// The panel is intentionally larger than the island so glow and growth are
+/// never clipped by the window edge, which means most of it is transparent.
+/// Without this, that transparent margin would swallow clicks meant for the app
+/// underneath.
+final class HUDContentView: NSView {
+    /// Opaque region, in this view's coordinates. Anything outside it is
+    /// transparent and must not intercept the mouse.
+    var activeRect: NSRect = .zero
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        let local = convert(point, from: superview)
+        guard activeRect.contains(local) else { return nil }
+        return super.hitTest(point)
+    }
+}
+
 /// Manages the floating Dynamic Island HUD panel.
-/// Borderless, non-activating, and floats above other windows.
+///
+/// The panel has ONE fixed size for its whole lifetime. It used to re-measure
+/// the SwiftUI content and resize itself on every update, which caused three
+/// separate defects: shadows sliced off at the window edge, the island walking
+/// across the screen as it was re-centred and clamped, and a resize →
+/// `windowDidMove` → settings-write → resize feedback loop. The island now
+/// animates inside a stable window and nothing here reacts to its contents.
 final class RecordingHUDWindow: NSObject, NSWindowDelegate {
     private var panel: NSPanel?
+    private var container: HUDContentView?
     private var cancellables = Set<AnyCancellable>()
 
     private let engine: DictationEngine
     private let analyzer: AudioLevelAnalyzer
+
+    /// Last stage the hit region was built for, so the common case (a streamed
+    /// transcript update) does no work at all.
+    private var lastState: DictationState?
 
     init(engine: DictationEngine, analyzer: AudioLevelAnalyzer) {
         self.engine = engine
         self.analyzer = analyzer
         super.init()
 
+        Self.migrateSavedPositionIfNeeded()
+
         let view = DynamicIslandHUDView(engine: engine, analyzer: analyzer)
         let hostingController = NSHostingController(rootView: view)
 
-        let panelWidth: CGFloat = 440
-        let panelHeight: CGFloat = 72
+        let panelSize = HUDLayout.panelSize
 
         let panel = HUDPanel(
-            contentRect: NSRect(x: 0, y: 0, width: panelWidth, height: panelHeight),
+            contentRect: NSRect(origin: .zero, size: panelSize),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
-        panel.contentViewController = hostingController
+
+        let container = HUDContentView(frame: NSRect(origin: .zero, size: panelSize))
+        container.autoresizingMask = [.width, .height]
+        hostingController.view.frame = container.bounds
+        hostingController.view.autoresizingMask = [.width, .height]
+        container.addSubview(hostingController.view)
+
+        panel.contentView = container
         panel.isFloatingPanel = true
         panel.level = .floating
         panel.collectionBehavior = [.canJoinAllSpaces, .stationary]
         panel.backgroundColor = .clear
         panel.isOpaque = false
-        panel.hasShadow = false // Shadow is cleanly handled by SwiftUI DynamicIslandHUDView
+        panel.hasShadow = false // Shadow is drawn by SwiftUI inside the island.
         panel.delegate = self
         panel.isMovableByWindowBackground = true
         panel.titlebarAppearsTransparent = true
         panel.titleVisibility = .hidden
 
-        // Position: restore saved coordinates if they still land on a connected
-        // display, otherwise top-center of the active screen.
-        let settings = AppSettings.shared
-        if let savedX = settings.floatingWidgetPositionX,
-           let savedY = settings.floatingWidgetPositionY,
-           NSScreen.screens.contains(where: { $0.visibleFrame.contains(CGPoint(x: savedX, y: savedY)) }) {
-            panel.setFrameOrigin(NSPoint(x: savedX, y: savedY))
-        } else if let screenFrame = Self.activeScreen()?.visibleFrame {
-            let x = screenFrame.midX - panelWidth / 2
-            let y = screenFrame.maxY - panelHeight - 12
-            panel.setFrameOrigin(NSPoint(x: x, y: y))
-        }
-
         self.panel = panel
+        self.container = container
         self.hostingController = hostingController
+
+        positionAtSavedAnchorOrTopCenter()
         bindEngine()
         update()
     }
 
     private var hostingController: NSHostingController<DynamicIslandHUDView>?
 
-    /// Re-measures the SwiftUI content and resizes the panel to match.
-    ///
-    /// `NSHostingController.sizingOptions` would do this automatically but is
-    /// macOS 13+, and the app targets 12.0 — so the size is taken from
-    /// `fittingSize` after a layout pass, driven by the same Combine
-    /// subscription that already refreshes the HUD.
-    /// Signature of everything that can change the island's size. The audio
-    /// analyzer republishes ~30x a second to animate the waveform, but that never
-    /// changes the layout — re-measuring on every tick would run a full SwiftUI
-    /// layout pass at 30 fps for nothing.
-    private var lastLayoutSignature: String = ""
+    // MARK: - Position
+    //
+    // The saved position is the panel's TOP-LEFT corner rather than AppKit's
+    // bottom-left origin. With a fixed panel size the two are interchangeable,
+    // but storing the top edge keeps the island where the user put it if the
+    // panel size is ever tuned again.
 
-    private func syncPanelSizeToContent() {
-        guard let view = hostingController?.view else { return }
+    private static let anchorVersionKey = "hudAnchorVersion"
+    private static let currentAnchorVersion = 2
 
-        let signature = [
-            engine.state.rawValue,
-            engine.liveTranscription,
-            engine.previewTranscript,
-            engine.lastTranscription,
-            String(engine.isSmartEditActive),
-            String(engine.isHandsFreeActive),
-            String(engine.isFallbackActive),
-            AppSettings.shared.selectedLanguage.rawValue
-        ].joined(separator: "\u{1}")
-        guard signature != lastLayoutSignature else { return }
-        lastLayoutSignature = signature
+    /// One-time conversion of the pre-fixed-size position, which was a
+    /// bottom-left origin of a panel that was about 72pt tall.
+    private static func migrateSavedPositionIfNeeded() {
+        let defaults = UserDefaults.standard
+        guard defaults.integer(forKey: anchorVersionKey) < currentAnchorVersion else { return }
+        defaults.set(currentAnchorVersion, forKey: anchorVersionKey)
 
-        view.layoutSubtreeIfNeeded()
-        let size = view.fittingSize
-        guard size.width > 1, size.height > 1 else { return }
-        resizeToFit(size)
+        let settings = AppSettings.shared
+        guard let y = settings.floatingWidgetPositionY else { return }
+        settings.floatingWidgetPositionY = y + 72
     }
 
-    /// Resizes the panel around its top edge and horizontal centre, so a growing
-    /// transcript expands downwards and outwards symmetrically the way the
-    /// Dynamic Island does — rather than dragging the top-left corner around, as
-    /// AppKit's bottom-left window origin would otherwise cause.
-    private func resizeToFit(_ size: NSSize) {
-        guard let panel else { return }
-        let current = panel.frame
-        guard abs(current.width - size.width) > 0.5 || abs(current.height - size.height) > 0.5 else { return }
+    private var savedAnchor: NSPoint? {
+        let settings = AppSettings.shared
+        guard let x = settings.floatingWidgetPositionX, let y = settings.floatingWidgetPositionY else {
+            return nil
+        }
+        return NSPoint(x: x, y: y)
+    }
 
-        // Vertically the island always grows downwards from its top edge.
-        //
-        // Horizontally it re-centres only when the user has never positioned it.
-        // Re-centring an explicitly placed panel makes each resize move it by
-        // half the size delta, and those errors compound across successive
-        // resizes until the island walks into the edge of the screen.
-        let anchorTop = current.maxY
-        let hasUserPosition = AppSettings.shared.floatingWidgetPositionX != nil
-        let newX = hasUserPosition ? current.origin.x : current.midX - size.width / 2
-        var target = NSRect(
-            x: newX,
-            y: anchorTop - size.height,
-            width: size.width,
-            height: size.height
-        )
+    /// Top-left point of the most recent move this class performed.
+    ///
+    /// `windowDidMove` is delivered asynchronously, so a "we are moving it
+    /// ourselves" flag is already back to false by the time the notification
+    /// arrives — every programmatic placement would then be persisted as if the
+    /// user had dragged the panel there, pinning it on first show. Comparing
+    /// points is delivery-order independent.
+    private var lastProgrammaticAnchor: NSPoint?
 
-        // Keep the island fully on its current screen as it grows.
-        if let visible = Self.screen(containing: current)?.visibleFrame {
-            target.origin.x = min(max(target.origin.x, visible.minX + 8), visible.maxX - size.width - 8)
-            target.origin.y = min(max(target.origin.y, visible.minY + 8), visible.maxY - size.height - 8)
+    private func setAnchor(_ anchor: NSPoint) {
+        lastProgrammaticAnchor = anchor
+        panel?.setFrameTopLeftPoint(anchor)
+    }
+
+    private func positionAtSavedAnchorOrTopCenter() {
+        guard panel != nil else { return }
+
+        if let anchor = savedAnchor,
+           NSScreen.screens.contains(where: { $0.visibleFrame.intersects(NSRect(origin: NSPoint(x: anchor.x, y: anchor.y - HUDLayout.panelSize.height), size: HUDLayout.panelSize)) }) {
+            setAnchor(anchor)
+            return
         }
 
-        lastProgrammaticOrigin = target.origin
-        panel.setFrame(target, display: true, animate: false)
-    }
-
-    /// Origin of the most recent resize this class performed.
-    ///
-    /// `windowDidMove` cannot be suppressed with a flag around `setFrame`: the
-    /// notification is delivered asynchronously, so the flag is already back to
-    /// false by the time it arrives, and every resize was persisting itself as if
-    /// the user had dragged the panel there. Comparing origins is delivery-order
-    /// independent.
-    private var lastProgrammaticOrigin: NSPoint?
-
-    private static func screen(containing frame: NSRect) -> NSScreen? {
-        NSScreen.screens.first { $0.frame.intersects(frame) } ?? activeScreen()
+        if let screenFrame = Self.activeScreen()?.visibleFrame {
+            let x = screenFrame.midX - HUDLayout.panelSize.width / 2
+            setAnchor(NSPoint(x: x, y: screenFrame.maxY - 4))
+        }
     }
 
     /// The display the user is actually working on: the one under the pointer,
@@ -164,21 +168,23 @@ final class RecordingHUDWindow: NSObject, NSWindowDelegate {
         return NSApp.keyWindow?.screen ?? NSScreen.main ?? NSScreen.screens.first
     }
 
+    // MARK: - Visibility
+
     func show() {
+        guard let panel else { return }
+        guard !panel.isVisible else { return }
+
         // With no pinned position, follow the user across displays rather than
         // reappearing on whichever screen the panel was last created on.
-        if AppSettings.shared.floatingWidgetPositionX == nil,
-           let panel,
-           let screenFrame = Self.activeScreen()?.visibleFrame {
-            let x = screenFrame.midX - panel.frame.width / 2
-            let y = screenFrame.maxY - panel.frame.height - 12
-            panel.setFrameOrigin(NSPoint(x: x, y: y))
+        if savedAnchor == nil {
+            positionAtSavedAnchorOrTopCenter()
         }
-        panel?.orderFrontRegardless()
+        panel.orderFrontRegardless()
     }
 
     func hide() {
-        panel?.orderOut(nil)
+        guard let panel, panel.isVisible else { return }
+        panel.orderOut(nil)
     }
 
     func toggle() {
@@ -193,14 +199,11 @@ final class RecordingHUDWindow: NSObject, NSWindowDelegate {
     // MARK: - Binding
 
     private func bindEngine() {
+        // Deliberately NOT subscribed to `analyzer`: it republishes ~30x a
+        // second to animate the waveform, and the SwiftUI view observes it
+        // directly. Waking this class up on every audio frame is what turned a
+        // cheap visualisation into a full AppKit layout pass at 30 fps.
         engine.objectWillChange
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.update()
-            }
-            .store(in: &cancellables)
-
-        analyzer.objectWillChange
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.update()
@@ -216,7 +219,8 @@ final class RecordingHUDWindow: NSObject, NSWindowDelegate {
     }
 
     private func update() {
-        syncPanelSizeToContent()
+        syncHitRegion()
+
         let settings = AppSettings.shared
         let isRecording = engine.state != .idle
         let shouldBeVisible = settings.isFloatingWidgetAlwaysVisible || (isRecording && settings.showRecordingHUD)
@@ -228,22 +232,29 @@ final class RecordingHUDWindow: NSObject, NSWindowDelegate {
         }
     }
 
+    /// Keeps the clickable area in step with the island's current stage. Four
+    /// discrete rectangles, recomputed only when the stage actually changes.
+    private func syncHitRegion() {
+        guard engine.state != lastState else { return }
+        lastState = engine.state
+        container?.activeRect = HUDLayout.hitRect(for: engine.state)
+    }
+
     // MARK: - NSWindowDelegate
 
     func windowDidMove(_ notification: Notification) {
         guard let panel else { return }
-        let origin = panel.frame.origin
+        let anchor = NSPoint(x: panel.frame.origin.x, y: panel.frame.maxY)
 
-        // A resize moves the origin too, because the island is anchored by its
-        // top edge. Persisting that would let the pinned position creep every
-        // time the transcript grows or shrinks, so only record real user drags.
-        if let programmatic = lastProgrammaticOrigin,
-           abs(programmatic.x - origin.x) < 0.5, abs(programmatic.y - origin.y) < 0.5 {
+        // Only record real user drags: persisting our own placement would pin
+        // the island on first show and stop it following the user's display.
+        if let programmatic = lastProgrammaticAnchor,
+           abs(programmatic.x - anchor.x) < 0.5, abs(programmatic.y - anchor.y) < 0.5 {
             return
         }
 
-        AppSettings.shared.floatingWidgetPositionX = origin.x
-        AppSettings.shared.floatingWidgetPositionY = origin.y
+        AppSettings.shared.floatingWidgetPositionX = anchor.x
+        AppSettings.shared.floatingWidgetPositionY = anchor.y
     }
 
     func windowShouldClose(_ sender: NSWindow) -> Bool {
