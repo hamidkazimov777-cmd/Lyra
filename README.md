@@ -2,7 +2,7 @@
   <img src="assets/logo.png" alt="Lyra Logo" width="128" height="128" />
   <h1 align="center">Lyra</h1>
   <p align="center">
-    <strong>Next-generation voice dictation and intelligent text editing for macOS.</strong><br>
+    <strong>Streaming voice dictation and in-place voice editing for macOS.</strong><br>
     Live streaming transcription &bull; Dynamic Island HUD &bull; LLM post-processing &bull; Bring your own keys
   </p>
   <p align="center">
@@ -18,7 +18,7 @@
     <img src="https://img.shields.io/badge/architecture-Universal%20(Apple%20Silicon%20%2B%20Intel)-6f42c1?style=flat-square" alt="Universal Binary">
     <img src="https://img.shields.io/badge/speech-Deepgram%20streaming%20%7C%20Whisper-brightgreen?style=flat-square" alt="Speech engines">
     <img src="https://img.shields.io/badge/post--processing-Gemini%20%2F%20GPT%20%2F%20Claude-orange?style=flat-square" alt="LLM post-processing">
-    <img src="https://img.shields.io/badge/tests-171%20passing-success?style=flat-square" alt="171 tests">
+    <img src="https://img.shields.io/badge/tests-142%20passing-success?style=flat-square" alt="142 tests">
     <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="MIT License">
   </p>
 </p>
@@ -39,16 +39,16 @@ Hold a key. Speak. Release. Your polished thoughts appear at the cursor.
 
 ## Key Features
 
-- 🌊 **Live Streaming Transcription**: With a Deepgram key, audio is streamed over a WebSocket as you speak and partial results arrive continuously — no waiting for an upload after you stop. The transcript is settled by the time you release the key.
-- 🏝️ **Dynamic Island HUD**: A floating island that grows to fit your words as they arrive, with real-time fluid audio visualizers and live state badges. Follows the display your cursor is on, and stays where you drag it.
-- ✨ **Smart Voice Editing (Selection Transform)**: Highlight text in *any* macOS app (Telegram, VS Code, Safari, Mail, Slack), press your hotkey, and speak a voice command (*"Translate to English"*, *"Make it concise and formal"*). Lyra replaces the selection with the refined result.
-- 🗣️ **Natural Speech Cleanup**: Filler words (*"ну", "вот", "короче"*) are removed, and self-corrections are resolved (*"Let's meet on Tuesday... no wait, Wednesday at 5"* → *"Let's meet on Wednesday at 5."*). Your wording and style are preserved; only the speech artifacts go.
-- 📖 **Vocabulary That Actually Reaches the Engines**: Your custom terms bias recognition *and* are given to the post-processor, so an unfamiliar product name is both more likely to be heard correctly and repaired if it is not.
-- ⌨️ **Hotkey Combinations & Two Gestures**: Bind a bare modifier or a chord such as `fn + \``. Hold to talk, or tap to keep recording hands-free — both on one key, or split across a dedicated hands-free key. Bare modifiers are never swallowed, so `⌥ + ←` and friends keep working system-wide.
-- 🛡️ **Layered Fallback**: Stream → cloud upload → on-device `whisper.cpp`. Local transcription uses the Metal GPU backend on Apple Silicon; on Intel Macs it runs on CPU and is several times slower than realtime, so treat it as a genuine last resort rather than a seamless one.
-- 📋 **Non-Destructive Text Insertion**: Clipboard paste (`Cmd+V`) or synthesized keystrokes. The clipboard is snapshotted and restored, and back-to-back dictations cannot clobber what you had copied.
-- 🔒 **Secrets in the Keychain, Private Mode for History**: Every API key lives in the macOS Keychain. Dictation history is opt-out with one switch, and logs never contain your dictated text.
-- 💰 **Pay-As-You-Go, Your Own Keys**: No subscription and no Lyra server. You pay your providers directly — Deepgram bills streamed audio per minute, the LLM bills tokens per dictation — typically a small fraction of a cent per dictation.
+- **Live Streaming Transcription**: With a Deepgram key, audio is streamed over a WebSocket as you speak and partial results arrive continuously — no waiting for an upload after you stop. The transcript is settled by the time you release the key.
+- **Dynamic Island HUD**: A floating island that grows to fit your words as they arrive, with real-time fluid audio visualizers and live state badges. Follows the display your cursor is on, and stays where you drag it.
+- **Smart Voice Editing (Selection Transform)**: Highlight text in *any* macOS app (Telegram, VS Code, Safari, Mail, Slack), press your hotkey, and speak a voice command (*"Translate to English"*, *"Make it concise and formal"*). Lyra replaces the selection with the refined result.
+- **Natural Speech Cleanup**: Filler words (*"ну", "вот", "короче"*) are removed, and self-corrections are resolved (*"Let's meet on Tuesday... no wait, Wednesday at 5"* → *"Let's meet on Wednesday at 5."*). Your wording and style are preserved; only the speech artifacts go.
+- **Vocabulary That Actually Reaches the Engines**: Your custom terms bias recognition *and* are given to the post-processor, so an unfamiliar product name is both more likely to be heard correctly and repaired if it is not.
+- **Hotkey Combinations & Two Gestures**: Bind a bare modifier or a chord such as `fn + \``. Hold to talk, or tap to keep recording hands-free — both on one key, or split across a dedicated hands-free key. Bare modifiers are never swallowed, so `⌥ + ←` and friends keep working system-wide.
+- **Layered Fallback**: Stream → cloud upload → on-device `whisper.cpp`. Local transcription uses the Metal GPU backend on Apple Silicon; on Intel Macs it runs on CPU and is several times slower than realtime, so treat it as a genuine last resort rather than a seamless one.
+- **Non-Destructive Text Insertion**: Clipboard paste (`Cmd+V`) or synthesized keystrokes. The clipboard is snapshotted and restored, and back-to-back dictations cannot clobber what you had copied.
+- **Secrets in the Keychain, Private Mode for History**: Every API key lives in the macOS Keychain. Dictation history is opt-out with one switch, and logs never contain your dictated text.
+- **Pay-As-You-Go, Your Own Keys**: No subscription and no Lyra server. You pay your providers directly — Deepgram bills streamed audio per minute, the LLM bills tokens per dictation — typically a small fraction of a cent per dictation.
 
 ---
 
@@ -127,7 +127,7 @@ open /Applications/Lyra.app
 Other targets:
 
 ```bash
-make test        # 171 unit tests, no network access required
+make test        # 142 unit tests, no network access required
 make dmg         # packaged disk image
 make xcodeproj   # generate Lyra.xcodeproj (requires xcodegen)
 ```
