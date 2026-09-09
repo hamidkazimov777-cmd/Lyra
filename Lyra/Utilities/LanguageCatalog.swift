@@ -46,6 +46,34 @@ enum Language: String, CaseIterable, Identifiable {
     static func from(code: String) -> Language {
         Language(rawValue: code.lowercased()) ?? .english
     }
+
+    /// Whether this language is written primarily in the Cyrillic script.
+    /// Used to sanity-check auto-detected streaming transcripts: a multilingual
+    /// speech model that mis-detects the language on a short clip returns text in
+    /// the wrong script, which this catches.
+    var isCyrillicScript: Bool {
+        switch self {
+        case .russian: return true
+        case .english, .spanish, .turkish, .azerbaijani: return false
+        }
+    }
+
+    /// Rejects a transcript whose script clearly contradicts this language, so a
+    /// mis-detected streaming result (e.g. Russian speech returned as Latin
+    /// gibberish) is discarded instead of typed. Conservative: only fires for
+    /// Cyrillic-script languages, where a wrong-language hallucination is
+    /// unambiguously non-Cyrillic. Latin-script languages can't be told apart
+    /// this cheaply, so they always pass.
+    func isPlausibleTranscript(_ text: String) -> Bool {
+        guard isCyrillicScript else { return true }
+        let letters = text.unicodeScalars.filter { CharacterSet.letters.contains($0) }
+        // Too few letters to judge (numbers, punctuation, a single token): trust it.
+        guard letters.count >= 4 else { return true }
+        let cyrillic = letters.filter { $0.properties.name?.hasPrefix("CYRILLIC") ?? false }
+        // Expect the bulk of the letters to be Cyrillic; a wrong-language
+        // hallucination has essentially none.
+        return Double(cyrillic.count) / Double(letters.count) >= 0.5
+    }
 }
 
 extension LanguageCatalog {

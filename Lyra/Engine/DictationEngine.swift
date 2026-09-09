@@ -635,8 +635,12 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
         let config = DeepgramStreamingClient.Config(
             apiKey: settings.deepgramAPIKey.trimmingCharacters(in: .whitespacesAndNewlines),
             model: settings.deepgramModel,
-            // The multilingual Flux models detect the language themselves;
-            // pinning it would break dictating in a second language.
+            // The multilingual Flux models detect the language themselves and
+            // reject a pinned `language`, so leave it to auto-detect here. The
+            // wrong-language hallucinations that produces on short clips
+            // ("добавил" → Dutch "Dat belde") are caught after the fact: the
+            // streamed transcript is validated against the selected language's
+            // script and discarded if it doesn't match (see the finish path).
             language: settings.deepgramModel.contains("multi") ? nil : settings.selectedLanguage.rawValue,
             baseURL: settings.deepgramBaseURL,
             // The vocabulary list reached whisper through initial_prompt but had
@@ -943,6 +947,12 @@ final class DictationEngine: ObservableObject, @unchecked Sendable {
                     .trimmingCharacters(in: .whitespacesAndNewlines)
                 if streamedTranscript.isEmpty {
                     fputs("[DictationEngine] Streaming returned nothing — falling back to the configured provider.\n", stderr)
+                } else if !AppSettings.shared.selectedLanguage.isPlausibleTranscript(streamedTranscript) {
+                    // The multilingual model mis-detected the language on this clip
+                    // and returned wrong-script gibberish. Drop it and let the
+                    // language-pinned provider transcribe the audio we still hold.
+                    fputs("[DictationEngine] Streamed transcript failed the language check — falling back to the configured provider.\n", stderr)
+                    streamedTranscript = ""
                 }
             }
             let usedStreaming = !streamedTranscript.isEmpty

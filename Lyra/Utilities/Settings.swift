@@ -347,22 +347,31 @@ final class AppSettings: ObservableObject, @unchecked Sendable {
     }
 
     static let popularPostProcessingPresets: [PostProcessingModelPreset] = [
-        PostProcessingModelPreset(id: "google/gemini-3.5-flash-lite", displayName: "Gemini 3.5 Flash Lite", providerTag: "Google"),
-        PostProcessingModelPreset(id: "openai/gpt-5.4-nano", displayName: "GPT-5.4 Nano", providerTag: "OpenAI"),
+        PostProcessingModelPreset(id: "deepseek/deepseek-chat", displayName: "DeepSeek V3 (cheap)", providerTag: "DeepSeek"),
+        PostProcessingModelPreset(id: "google/gemini-2.5-flash-lite", displayName: "Gemini 2.5 Flash Lite", providerTag: "Google"),
         PostProcessingModelPreset(id: "openai/gpt-4o-mini", displayName: "GPT-4o Mini", providerTag: "OpenAI"),
-        PostProcessingModelPreset(id: "anthropic/claude-haiku-4.5", displayName: "Claude Haiku 4.5", providerTag: "Anthropic"),
-        PostProcessingModelPreset(id: "deepseek/deepseek-chat", displayName: "DeepSeek V3", providerTag: "DeepSeek")
+        PostProcessingModelPreset(id: "anthropic/claude-haiku-4.5", displayName: "Claude Haiku 4.5", providerTag: "Anthropic")
     ]
 
-    static let defaultAIPostProcessingModel = "google/gemini-3.5-flash-lite"
+    // DeepSeek V3: capable Russian post-processing at a fraction of the cost of
+    // the frontier minis — the cheapest sensible default for a tight OpenRouter
+    // budget.
+    static let defaultAIPostProcessingModel = "deepseek/deepseek-chat"
+
+    /// Model slugs that no longer exist (or never did) and must be moved off any
+    /// machine that still has them stored, so post-processing keeps working.
+    private static let retiredPostProcessingModels: Set<String> = [
+        "openai/gpt-5.4-nano",
+        "google/gemini-3.5-flash-lite",
+    ]
 
     var aiPostProcessingModel: String {
         get {
             guard let stored = defaults.string(forKey: Key.aiPostProcessingModel.rawValue), !stored.isEmpty else {
                 return Self.defaultAIPostProcessingModel
             }
-            // Migrate legacy default if present
-            if stored == "openai/gpt-5.4-nano" {
+            // Migrate retired/invalid slugs to the current default
+            if Self.retiredPostProcessingModels.contains(stored) {
                 defaults.set(Self.defaultAIPostProcessingModel, forKey: Key.aiPostProcessingModel.rawValue)
                 return Self.defaultAIPostProcessingModel
             }

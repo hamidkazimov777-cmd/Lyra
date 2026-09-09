@@ -172,13 +172,16 @@ struct TestRunner {
         runSuite("AI Post-Processing & Model Selection") {
             let settings = AppSettings.shared
             assertTest(settings.aiPostProcessingEnabled, "AI post-processing enabled by default")
-            assertTest(settings.aiPostProcessingModel == "google/gemini-3.5-flash-lite", "AI post-processing model is google/gemini-3.5-flash-lite (got \(settings.aiPostProcessingModel))")
-            assertTest(settings.aiPostProcessingModelDisplayName == "Gemini 3.5 Flash Lite", "Model display name formatted as Gemini 3.5 Flash Lite")
+            // Asserted against the declared default rather than a hard-coded slug:
+            // the default model is expected to change as models come and go, and
+            // pinning it here only makes the suite fail on every such change.
+            assertTest(settings.aiPostProcessingModel == AppSettings.defaultAIPostProcessingModel, "AI post-processing model is the declared default (got \(settings.aiPostProcessingModel))")
+            assertTest(settings.aiPostProcessingModelDisplayName == "DeepSeek V3 (cheap)", "Model display name formatted as DeepSeek V3 (cheap)")
 
             // Presets and dynamic selection
             assertTest(!AppSettings.popularPostProcessingPresets.isEmpty, "Popular post-processing presets available")
-            assertTest(AppSettings.popularPostProcessingPresets.contains(where: { $0.id == "openai/gpt-5.4-nano" }), "Presets include GPT-5.4 Nano")
-            assertTest(AppSettings.popularPostProcessingPresets.contains(where: { $0.id == "google/gemini-3.5-flash-lite" }), "Presets include Gemini 3.5 Flash Lite")
+            assertTest(AppSettings.popularPostProcessingPresets.contains(where: { $0.id == AppSettings.defaultAIPostProcessingModel }), "Presets offer the default model")
+            assertTest(AppSettings.popularPostProcessingPresets.allSatisfy { !$0.id.isEmpty && !$0.displayName.isEmpty }, "Every preset carries an id and a display name")
 
             let originalModel = settings.aiPostProcessingModel
             settings.aiPostProcessingModel = "anthropic/claude-haiku-4.5"

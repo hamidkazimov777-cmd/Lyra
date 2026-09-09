@@ -360,6 +360,27 @@ final class OpenAISpeechService: SpeechTranscriptionProvider, @unchecked Sendabl
         let errorMessage: String?
     }
 
+    /// Detects when the post-processing model replied conversationally (asking to
+    /// be given text, or announcing it is ready) instead of returning the cleaned
+    /// transcript. Kept deliberately conservative — a real transcript is far longer
+    /// and rarely opens with one of these request phrases — so legitimate output is
+    /// never discarded.
+    static func looksLikeRefusal(_ text: String) -> Bool {
+        let lower = text.lowercased()
+        guard !lower.isEmpty else { return false }
+        // Only a short, standalone reply can be a refusal; a genuine cleaned
+        // transcript that happens to contain these words is much longer.
+        guard text.count <= 160 else { return false }
+        let markers = [
+            "отправьте текст", "отправь текст", "пришлите текст", "предоставьте текст",
+            "введите текст", "нет текста", "текст для обработки", "жду текст",
+            "готов обработать", "готов к обработке",
+            "please send", "please provide", "provide the text", "no text",
+            "send the text", "i'm ready", "ready to process", "waiting for",
+        ]
+        return markers.contains { lower.contains($0) }
+    }
+
     /// Refines draft transcription text with full diagnostic feedback.
     func postProcessDetailed(
         draftText: String,
@@ -380,11 +401,24 @@ final class OpenAISpeechService: SpeechTranscriptionProvider, @unchecked Sendabl
             return PostProcessResult(text: draftText, success: false, elapsedSeconds: 0, errorMessage: "Invalid AI post-processing Base URL")
         }
 
+        // Wrap the transcript in an explicit tag so a weaker model treats it as
+        // the text to clean, not as a chat turn it should reply to. Bare text
+        // after a task-describing system prompt is what nudges some models into
+        // answering conversationally (e.g. "Пожалуйста, отправьте текст для
+        // обработки.") instead of returning the processed transcript.
+        let userMessage = """
+        Обработай текст ниже по правилам и верни только результат.
+
+        <текст>
+        \(trimmed)
+        </текст>
+        """
+
         let payload: [String: Any] = [
             "model": model,
             "messages": [
                 ["role": "system", "content": systemPrompt],
-                ["role": "user", "content": trimmed]
+                ["role": "user", "content": userMessage]
             ],
             "temperature": 0.1
         ]
@@ -440,6 +474,14 @@ final class OpenAISpeechService: SpeechTranscriptionProvider, @unchecked Sendabl
                        let message = first["message"] as? [String: Any],
                        let content = message["content"] as? String {
                         let cleaned = content.trimmingCharacters(in: .whitespacesAndNewlines)
+                        // The model sometimes answers conversationally ("please send
+                        // the text") instead of returning the processed transcript.
+                        // Never type that in place of the user's words — keep the
+                        // original transcript and report why.
+                        if Self.looksLikeRefusal(cleaned) {
+                            fputs("[OpenAISpeechService] Post-processing returned a meta reply, keeping raw transcript: \"\(cleaned.prefix(80))\"\n", stderr)
+                            return PostProcessResult(text: trimmed, success: false, elapsedSeconds: elapsed, errorMessage: "Model returned a non-transcript reply")
+                        }
                         let finalText = cleaned.isEmpty ? trimmed : cleaned
                         return PostProcessResult(text: finalText, success: true, elapsedSeconds: elapsed, errorMessage: nil)
                     }
